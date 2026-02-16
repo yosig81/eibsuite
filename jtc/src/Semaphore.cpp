@@ -82,24 +82,57 @@ JTCSemaphore::wait(long timeout)
     {
         rc = sem_wait(&m_sem);
     }
-    else
-    {
-        struct timeval tv;
-        struct timespec abstime;
-        gettimeofday(&tv, 0);
+	else
+	{
+		struct timeval tv;
+		struct timespec abstime;
+		gettimeofday(&tv, 0);
         //                       123456789 - 10^9
         const long oneBillion = 1000000000;
 
         abstime.tv_sec = tv.tv_sec + (timeout / 1000);
         abstime.tv_nsec = (tv.tv_usec * 1000) + ((timeout % 1000) * 1000000);
-        if (abstime.tv_nsec >= oneBillion)
-        {
-           ++abstime.tv_sec;
-           abstime.tv_nsec -= oneBillion;
-        }
+		if (abstime.tv_nsec >= oneBillion)
+		{
+		   ++abstime.tv_sec;
+		   abstime.tv_nsec -= oneBillion;
+		}
 
-        rc = sem_timedwait(&m_sem, &abstime);
-    }
+	#if defined(__APPLE__)
+		//
+		// macOS toolchains may not expose sem_timedwait() for unnamed
+		// POSIX semaphores. Emulate timed wait with sem_trywait() polling.
+		//
+		const long long deadline_msec =
+			((long long)abstime.tv_sec * 1000LL) + (abstime.tv_nsec / 1000000LL);
+
+		while (true)
+		{
+			rc = sem_trywait(&m_sem);
+			if (rc == 0)
+			{
+				break; // acquired
+			}
+			if (errno != EAGAIN && errno != EINTR)
+			{
+				break; // real error
+			}
+
+			struct timeval now;
+			gettimeofday(&now, 0);
+			const long long now_msec =
+				((long long)now.tv_sec * 1000LL) + (now.tv_usec / 1000LL);
+			if (now_msec >= deadline_msec)
+			{
+				errno = ETIMEDOUT;
+				break;
+			}
+			usleep(1000); // 1ms poll interval
+		}
+	#else
+		rc = sem_timedwait(&m_sem, &abstime);
+	#endif
+	}
     if (rc != 0 && errno != ETIMEDOUT)
         JTC_THROW_EXCEPTION(errno, "Semaphore wait aborted due to error.")
 

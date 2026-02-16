@@ -249,7 +249,7 @@ void Socket::SetLocalPort(int localPort) throw(SocketException) {
   localAddr.sin_addr.s_addr = htonl(INADDR_ANY);
   localAddr.sin_port = htons(localPort);
 
-  if (bind(sockDesc, (sockaddr *) &localAddr, sizeof(sockaddr_in)) < 0) {
+  if (::bind(sockDesc, (sockaddr *) &localAddr, sizeof(sockaddr_in)) < 0) {
     throw SocketException("Set of local port failed (bind())", true);
   }
 }
@@ -259,7 +259,7 @@ void Socket::SetLocalAddressAndPort(const CString &localAddress,int localPort) t
   sockaddr_in localAddr;
   fillAddr(localAddress, localPort, localAddr);
 
-  if (bind(sockDesc, (sockaddr *) &localAddr, sizeof(sockaddr_in)) < 0) {
+  if (::bind(sockDesc, (sockaddr *) &localAddr, sizeof(sockaddr_in)) < 0) {
 	  CString error;
 	  this->GetError(error);
 	  throw SocketException("Set of local address and port failed (bind())", true);

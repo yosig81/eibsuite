@@ -74,9 +74,19 @@ int64 CDiffieHellman::GetRTSC( void )
 	*/
 	return rand()*rand();
 #else
-	int64 ll;
-	__asm__ __volatile__ ("rdtsc" : "=A" (ll));
-	return ll;
+	#if defined(__i386__) || defined(__x86_64__)
+		// x86/x64 timestamp counter
+		unsigned int lo = 0, hi = 0;
+		__asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
+		return ((int64)hi << 32) | (int64)lo;
+	#elif defined(__aarch64__)
+		// ARM64 virtual counter (high-resolution cycle-like counter)
+		unsigned long long cnt = 0;
+		__asm__ __volatile__("mrs %0, cntvct_el0" : "=r"(cnt));
+		return (int64)cnt;
+	#else
+		#error "CDiffieHellman::GetRTSC is not implemented for this architecture"
+	#endif
 #endif
 #endif
 }
