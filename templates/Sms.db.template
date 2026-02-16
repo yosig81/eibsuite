@@ -1,0 +1,25 @@
+#########################################################################################################################################
+# USER Block - The name of the block must start with "PHONE_NUMBER-",
+# and the phone number registered to the alerts within the Block.
+# The phone number should be in international format: <country code><area code with no zero prefix><phone number>
+#########################################################################################################################################
+[PHONE_NUMBER-972526551549]
+
+#EIB_TO_SMS - This is an entry that maps between INCOMING message from the EIB and an SMS message that should be sent to the cellular device.
+#If the SMS server receives a message matching the rule defined here, an SMS will be sent to the user.
+#This entry is composed of 3 different fields, seperated by a colon <1>:<2>:<3>
+# 1 - The eib message destination address
+# 2 - The eib message value field (apci)
+# 3 - The SMS text to be sent to the user
+EIB_TO_SMS = 1/2/3:0x81:The light is On
+EIB_TO_SMS = 1/2/3:0x80:The light is off
+
+#SMS_TO_EIB
+#This is an entry that mapps between INCOMING SMS message and a OUTGOING EIB message that should be sent to the eib home network.
+#if the SMS server receives a message matching the rule defined here, an EIB Frame will be sent the Eib Device
+#this entry composed of 3 different fields:
+# 1 - The SMS text that is received by the user
+# 2 - The eib message value field
+# 3 - The eib message destination address
+SMS_TO_EIB = light on:0x81:1/2/3
+SMS_TO_EIB = light off:0x80:1/2/3

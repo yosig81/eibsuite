@@ -1,0 +1,86 @@
+mainmenu "EIBSuite Configuration"
+
+choice
+        prompt "Target CPU"
+
+config CONFIG_CPU_X86
+        bool "x86 (Standard PC)"
+
+config CONFIG_CPU_ARM
+        bool "Arm (Sheeva Plug)"
+
+endchoice
+
+menu "Compilers Configuration"
+
+config CONFIG_C_COMPILER
+	string "C Compiler command"
+	default "gcc"
+
+config CONFIG_CPP_COMPILER
+	string "C++ Compiler command"
+	default "g++"
+
+config CONFIG_C_LINKER
+	string "C Linker command"
+	default "gcc"
+
+config CONFIG_CPP_LINKER
+	string "C++ Linker command"
+	default "g++"
+
+endmenu
+
+menu "Packages Configuration"
+
+config CONFIG_JTC_LIB
+	bool "JTC"
+	default y
+	help
+		this configuration option will build the JTC library. the JTC library contains the Threading and Synchronization code and is required by all EIB Suite applications.
+
+config CONFIG_GSM_LIB
+        bool "GSMLib library"
+        default y
+
+config CONFIG_EIB_STD_LIB
+	bool "EIBStdLib library"
+	depends on CONFIG_JTC_LIB
+	default y
+
+config CONFIG_EIB_SERVER
+        bool "EIBServer application "
+        depends on CONFIG_EIB_STD_LIB
+	default y
+
+config CONFIG_WEB_SERVER
+	bool "WEBServer application"
+	depends on CONFIG_EIB_STD_LIB
+        default y
+
+config CONFIG_AMX_SERVER
+        bool "AMXServer application"
+        depends on CONFIG_EIB_STD_LIB
+        default y
+
+config CONFIG_RELAY_SERVER
+        bool "EIBRelay application"
+        depends on CONFIG_EIB_STD_LIB
+        default y
+
+config CONFIG_GENERIC_TEMPLATE
+        bool "GenericTemplate application"
+        depends on CONFIG_EIB_STD_LIB
+        default y
+
+config CONFIG_SMS_SERVER
+        bool "SMSServer application"
+        depends on CONFIG_EIB_STD_LIB && CONFIG_GSM_LIB
+        default y
+
+config CONFIG_EIB_EMULATOR
+        bool "Emulator application"
+        depends on CONFIG_EIB_STD_LIB
+        default y
+
+endmenu
