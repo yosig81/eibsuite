@@ -38,11 +38,17 @@ $(OUT_LIB): $(OBJS)
 install:
 	@$(CP) $(OUT_LIB) $(INSTALL_DIR)
 
+test: $(OUT_LIB)
+	@echo 'Building and running tests...'
+	@$(MAKE) -C ../test run
+	@echo 'Tests completed.'
+
 clean:
 	-$(RM) $(OBJS) $(OBJS:%.o=%.d) $(OUT_LIB)
 	-$(RM) xml
+	-@$(MAKE) -C ../test clean 2>/dev/null || true
 	-@echo ' '
 
-.PHONY: all clean dependents
+.PHONY: all clean test dependents
 .SECONDARY:
 

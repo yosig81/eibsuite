@@ -51,33 +51,27 @@ StringTokenizer::StringTokenizer(const CString& str, const CString& delim)
 
 int StringTokenizer::CountTokens()
 {
-
-   unsigned int prev_pos = 0;
-   int num_tokens        = 0;
-
-   if (_token_str.GetLength() > 0)
-   {
-      num_tokens = 0;
-
-      unsigned int curr_pos = 0;
-      while(true)
-      {
-         if ((curr_pos = _token_str.Find(_delim,curr_pos)) != string::npos)
-         {
-            num_tokens++;
-            prev_pos  = curr_pos;
-            curr_pos += _delim.GetLength();
-         }
-         else
-          break;
-      }
-      return ++num_tokens;
-   }
-   else
-   {
+   if (_token_str.GetLength() == 0)
       return 0;
+
+   int num_tokens = 1; // At least one token if string is non-empty
+   int curr_pos = 0;
+
+   while(true)
+   {
+      int found_pos = _token_str.Find(_delim, curr_pos);
+      if (found_pos == -1) // Not found
+         break;
+
+      num_tokens++;
+      curr_pos = found_pos + _delim.GetLength();
+
+      // Prevent infinite loop if we're at or past the end
+      if (curr_pos >= (int)_token_str.GetLength())
+         break;
    }
 
+   return num_tokens;
 }
 
 
@@ -94,12 +88,14 @@ CString StringTokenizer::NextToken()
      return "";
 
    CString  tmp_str = "";
-   unsigned int pos = _token_str.Find(_delim,0);
+   int pos = _token_str.Find(_delim,0); // Changed to int to properly handle -1
 
-   if (pos != string::npos)
+   if (pos != -1 && pos != static_cast<int>(string::npos))
    {
       tmp_str   = _token_str.SubString(0,pos);
-      _token_str = _token_str.SubString(pos + _delim.GetLength(),_token_str.GetLength()-pos - 1);
+      int newStart = pos + _delim.GetLength();
+      int newLength = _token_str.GetLength() - pos - _delim.GetLength();
+      _token_str = _token_str.SubString(newStart, newLength);
    }
    else
    {
@@ -134,12 +130,14 @@ CString StringTokenizer::NextToken(const CString& delimiter)
      return "";
 
    CString  tmp_str = "";
-   unsigned int pos = _token_str.Find(delimiter,0);
+   int pos = _token_str.Find(delimiter,0); // Changed to int to properly handle -1
 
-   if (pos != string::npos)
+   if (pos != -1 && pos != static_cast<int>(string::npos))
    {
       tmp_str   = _token_str.SubString(0,pos);
-	  _token_str = _token_str.SubString(pos + delimiter.GetLength(),_token_str.GetLength() - pos);
+      int newStart = pos + delimiter.GetLength();
+      int newLength = _token_str.GetLength() - pos - delimiter.GetLength();
+	  _token_str = _token_str.SubString(newStart, newLength);
    }
    else
    {

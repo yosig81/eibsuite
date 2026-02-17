@@ -244,13 +244,13 @@ bool CString::operator>(const char* rhs) const
 
 bool CString::operator<(const CString& rhs) const
 {
-	return _str > rhs._str;
+	return _str < rhs._str;
 }
 
 bool CString::operator<(const char* rhs) const
 {
 	CString tmp(rhs);
-	return *this > tmp;
+	return *this < tmp;
 }
 
 const CString CString::operator+(const char* rhs) const
@@ -428,7 +428,7 @@ double CString::ToDouble() const
 
 bool CString::ToBool()  const
 {
-	if(strcmp(_str.c_str(),"true") == 0){
+	if(strcasecmp(_str.c_str(),"true") == 0){
 		return true;
 	}
 	return false;
@@ -678,19 +678,20 @@ bool CString::EndsWith(const CString& str) const
 
 bool CString::EndsWith(const char* str) const
 {
-    unsigned int lastMatchPos = _str.rfind(str); // Find the last occurrence of ending
-    bool isEnding = (lastMatchPos != std::string::npos); // Make sure it's found at least once
+    if (str == NULL || *str == '\0')
+        return true; // Empty string ends everything
 
-    /*
-    // If the string was found, make sure that any characters that follow it are the ones we're trying to ignore
-    for( int i = lastMatchPos + strlen(str); (i < _str.length()) && isEnding; i++)
-    {
-        if( (_str[i] != '\n') &&
-            (_str[i] != '\r') )
-        {
-            isEnding = false;
-        }
-    }
-	*/
-    return isEnding;
+    size_t strLen = strlen(str);
+    size_t thisLen = _str.length();
+
+    if (strLen > thisLen)
+        return false; // Search string is longer than this string
+
+    // Check if the last occurrence is at the end
+    size_t lastMatchPos = _str.rfind(str);
+    if (lastMatchPos == std::string::npos)
+        return false; // Not found at all
+
+    // The match must be at position (length - searchLength) to be at the end
+    return (lastMatchPos == thisLen - strLen);
 }
