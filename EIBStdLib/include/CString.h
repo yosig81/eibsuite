@@ -65,10 +65,6 @@ public:
 	CString(int64 str);
 	/*!Convert double to CString Constructor*/
 	CString(double str);
-	/*!Convert double to CString Constructor*/
-	CString(long str);
-	/*!Convert double to CString Constructor*/
-	CString(unsigned long str);
 	/*! Copy Constructor*/
 	CString(const CString& rhs);
 	/*!Destructor*/
@@ -219,20 +215,10 @@ public:
 	*/
 	CString& operator+=(const unsigned int& str);
 	/*!
-	\fn CString& operator+=(const unsigned int& str)
-	\return CString - the current string plus the charcters added
-	*/
-	CString& operator+=(const long& str);
-	/*!
 	\fn CString& operator+=(const char& c)
 	\return CString - the current string plus the charcter added
 	*/
 	CString& operator+=(unsigned char c);
-	/*!
-	\fn CString& operator+=(const unsigned int& str)
-	\return CString - the current string plus the charcters added
-	*/
-	CString& operator+=(const unsigned long& str);
 	/*!
 	\fn const CString operator+=(const int64& str)
 	\return CString - the current string plus the charcters added

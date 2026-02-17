@@ -65,20 +65,6 @@ CString::CString(int str)
 	_str = os.str();
 }
 
-CString::CString(long str)
-{
-	ostringstream os;
-	os << str;
-	_str = os.str();
-}
-
-CString::CString(unsigned long str)
-{
-	ostringstream os;
-	os << str;
-	_str = os.str();
-}
-
 CString::CString(unsigned int str)
 {
 	ostringstream os;
@@ -185,22 +171,6 @@ CString& CString::operator+=(unsigned char c)
 }
 
 CString& CString::operator+=(const int& str)
-{
-	ostringstream os;
-	os << str;
-	_str += os.str();
-	return *this;
-}
-
-CString& CString::operator+=(const long& str)
-{
-	ostringstream os;
-	os << str;
-	_str += os.str();
-	return *this;
-}
-
-CString& CString::operator+=(const unsigned long& str)
 {
 	ostringstream os;
 	os << str;
