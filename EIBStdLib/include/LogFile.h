@@ -54,6 +54,10 @@ public:
 
 private:
 	void AppendTimeLine();
+	void RotateLogIfNeeded();
+	bool HasScreenTarget() const;
+	bool HasFileTarget() const;
+	const char* LevelPrefix(LogLevel level) const;
 
 private:
 	CString _file_name;

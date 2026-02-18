@@ -47,41 +47,24 @@ void CLogFile::SetConsoleColor(TEXT_COLOR color)
 
 void CLogFile::Init(const CString& file_name)
 {
-//YGYG: for now, avoid logging to files
-#if 0
+	JTCSynchronized sync(*this);
 	_file_name = file_name;
 
-	int size = CUtils::GetFileSize(file_name);
-	if (size > LOG_FILE_MAX_SIZE){
-		int result;
-		CString new_file_name;
-		CUtils::GetTimeStrForFile(new_file_name);
-		new_file_name += ".log";
-		result = rename( file_name.GetBuffer(),new_file_name.GetBuffer());
-		if(result != 0){
-			throw CEIBException(FileError,"Error rename of log file");
-		}
-	}
-
-	if(!CDirectory::Create(CURRENT_LOGS_FOLDER))
+	if (_file_name.IsEmpty())
 	{
-		if(!CDirectory::Change(CURRENT_LOGS_FOLDER))
-		{
-			throw CEIBException(FileError,"Cannot Initialized Logs folder.");
-		}
-		else{
-			CDirectory::Change(CURRENT_WORKING_FOLDER);
-		}
+		return;
 	}
 
-	_file.open(_file_name.GetBuffer(),ios::out|ios::app);
-	if(_file.fail())
+	RotateLogIfNeeded();
+
+	_file.clear();
+	_file.open(_file_name.GetBuffer(), ios::out | ios::app);
+	if (_file.fail())
 	{
-		throw CEIBException(FileError,"Cannot Initialized Log file.");
+		_file.clear();
+		throw CEIBException(FileError, "Cannot initialize log file: %s", _file_name.GetBuffer());
 	}
-
 	_file.close();
-#endif
 }
 
 void CLogFile::AppendTimeLine()
@@ -92,91 +75,110 @@ void CLogFile::AppendTimeLine()
 	_file << ']';
 }
 
-void CLogFile::Log(LogLevel level, const char* format,...)
+void CLogFile::RotateLogIfNeeded()
 {
-	if(_print_meth == NULL || _log_level < level){
+	if (!HasFileTarget())
+	{
 		return;
 	}
-	//only one thread can write the the same log at the same time ... (prevent jibrish)
+
+	int size = CUtils::GetFileSize(_file_name);
+	if (size < 0 || size <= LOG_FILE_MAX_SIZE)
+	{
+		return;
+	}
+
+	CString stamp;
+	CUtils::GetTimeStrForFile(stamp);
+	CString rotated = _file_name + "." + stamp + ".old";
+	if (rename(_file_name.GetBuffer(), rotated.GetBuffer()) != 0)
+	{
+		throw CEIBException(FileError, "Error rotating log file: %s", _file_name.GetBuffer());
+	}
+}
+
+bool CLogFile::HasScreenTarget() const
+{
+	return _print2screen && _print_meth != NULL;
+}
+
+bool CLogFile::HasFileTarget() const
+{
+	return !_file_name.IsEmpty();
+}
+
+const char* CLogFile::LevelPrefix(LogLevel level) const
+{
+	switch (level)
+	{
+	case LOG_LEVEL_ERROR:
+		return LOG_LEVEL_ERROR_STR;
+	case LOG_LEVEL_DEBUG:
+		return LOG_LEVEL_DEBUG_STR;
+	case LOG_LEVEL_INFO:
+	default:
+		return LOG_LEVEL_INFO_STR;
+	}
+}
+
+void CLogFile::Log(LogLevel level, const char* format,...)
+{
+	if (_log_level < level || format == NULL)
+	{
+		return;
+	}
+
+	if (!HasScreenTarget() && !HasFileTarget())
+	{
+		return;
+	}
+
+	char status[1024];
+	status[0] = '\0';
+
+	va_list arglist;
+	va_start(arglist, format);
+	vsnprintf(status, sizeof(status), format, arglist);
+	va_end(arglist);
+	status[sizeof(status) - 1] = '\0';
+
 	JTCSynchronized sync(*this);
 
-#if 0
-	bool print2file = true;
-	if(_log_level > level){
-		print2file = false;
-	}
-#endif
-
-	if (level == LOG_LEVEL_ERROR)
+	if (HasFileTarget())
 	{
-		this->SetConsoleColor(RED);
-	}
-
-//YGYG: for now, avoid logging to files
-#if 0
-	if(print2file){
-
-		_file.open(_file_name.GetBuffer(),ios::out|ios::app);
-		if(_file.fail()){
-			throw CEIBException(FileError,"Cannot Open Log file.");
-			_file.close();
-			return;
+		RotateLogIfNeeded();
+		_file.clear();
+		_file.open(_file_name.GetBuffer(), ios::out | ios::app);
+		if (_file.fail())
+		{
+			_file.clear();
+			throw CEIBException(FileError, "Cannot open log file: %s", _file_name.GetBuffer());
 		}
 
 		AppendTimeLine();
-		
-		_file << ' ';
-
-		switch (level)
-		{
-		case LOG_LEVEL_INFO:
-			_file << LOG_LEVEL_INFO_STR;
-			break;
-		case LOG_LEVEL_ERROR:
-			_file << LOG_LEVEL_ERROR_STR;
-			break;
-		case LOG_LEVEL_DEBUG:
-			_file << LOG_LEVEL_DEBUG_STR;
-			break;
-		default:
-			_file << LOG_LEVEL_INFO_STR;
-			break;
-		}
-		
-		_file << ' ';
+		_file << ' ' << LevelPrefix(level) << ' ' << status << endl;
+		_file.close();
 	}
-#endif
-	CString ret;
-	if (NULL != format)
-	{
-		char status[512];
-		int len = 0;
 
-		va_list arglist;
-	    va_start(arglist,format);
-		len = vsprintf(status,format,arglist);
-		va_end(arglist);
-#if 0
-		if(print2file){
-			//print to the file
-			_file << status << endl;
+	if (HasScreenTarget())
+	{
+		const bool use_console_color = (_print_meth == printf);
+		if (level == LOG_LEVEL_ERROR && use_console_color)
+		{
+			SetConsoleColor(RED);
 		}
-#endif
-		//print to screen
-		if(_print2screen){
-			_print_meth(status);
-			_print_meth("\n");
-			//cout.flush();
-			//cout << status << endl;
+
+		_print_meth("%s", status);
+		_print_meth("\n");
+
+		if (level == LOG_LEVEL_ERROR && use_console_color)
+		{
 			SetConsoleColor(WHITE);
 		}
 	}
-//YGYG: for now, avoid logging to files
-#if 0
-	if(print2file)
-	{
-		_file.close();
-	}
-#endif
 }
 
+void CLogFile::Log(LogLevel level, const CString& data)
+{
+	Log(level, "%s", data.GetBuffer());
+}
