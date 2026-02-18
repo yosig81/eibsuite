@@ -189,6 +189,7 @@ CString Socket::LocalAddress(const CString& interface_name) throw(SocketExceptio
 
 	if (ioctl(fd, SIOCGIFCONF, &intfc) < 0)
 	{
+		::close(fd);
 		throw SocketException("IOCTL Failed. (Get net interface configuration)", true);
 	}
 
@@ -199,9 +200,11 @@ CString Socket::LocalAddress(const CString& interface_name) throw(SocketExceptio
 		CString ifname = item->ifr_name;
 		if(ifname == interface_name){
 			CString ret(inet_ntoa(((struct sockaddr_in *)&item->ifr_addr)->sin_addr));
+			::close(fd);
 			return ret;
 		}
 	}
+	::close(fd);
 	CString err = "Cannot find network interface with name \"";
 	err += interface_name;
 	err += "\"!!!";
@@ -500,7 +503,7 @@ void UDPSocket::SendTo(const void *buffer, int bufferLen,
 	struct timeval tv;
 	initSockFileDescriptors(sockDesc,&wfds,&tv,time_out);
 
-	if (select(1,NULL,&wfds,&wfds,&tv) < 0){
+	if (select(sockDesc + 1,NULL,&wfds,NULL,&tv) < 0){
 		throw SocketException("Send failed (sendto())", true);
 	}
 	if(!FD_ISSET(sockDesc,&wfds))
