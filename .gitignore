@@ -1,0 +1,20 @@
+.DS_Store
+
+# EIBStdLib Linux build outputs
+EIBStdLib/linux/*.o
+EIBStdLib/linux/*.d
+EIBStdLib/linux/*.so
+EIBStdLib/linux/cli
+EIBStdLib/linux/build*.log
+EIBStdLib/linux/xml/
+
+# EIBStdLib test outputs
+EIBStdLib/test/build/
+EIBStdLib/test/run_tests
+EIBStdLib/test/run_tests*.log
+
+# jtc build outputs
+jtc/linux/*.o
+jtc/linux/*.d
+jtc/linux/*.so
+jtc/tests/
