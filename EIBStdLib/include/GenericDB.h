@@ -96,16 +96,15 @@ public:
 			return false;
 		}
 
-		CString line;
-		int line_num = 0;
-		CString record_name;
-		T record;
-		bool first = true;
-		while (!myfile.eof())
-		{
-			int index = string::npos;
-			line_num++;
-			getline(myfile,line.GetSTDString());
+			CString line;
+			int line_num = 0;
+			CString record_name;
+			T record;
+			bool first = true;
+			while (!myfile.eof())
+			{
+				line_num++;
+				getline(myfile,line.GetSTDString());
 
 			line.Trim();
 			line.Trim('\r');
@@ -131,17 +130,25 @@ public:
 				myfile.close();
 				throw CEIBException(ConfigFileError, "Error in line %d. line is not valid Block line.", line_num);
 			}
-			else if((index = line.FindFirstOf('=')) != static_cast<int>(string::npos))
-			{
-				if(index == line.GetLength() -1){
-					myfile.close();
-					throw CEIBException(ConfigFileError, "Error in line %d: missing parameter value", line_num);
-				}
-				CString param_name = line.SubString(0,index);
-				CString param_value = line.SubString(index + 1,line.GetLength() - index - 1);
-				if(!record_name.IsEmpty())
+				else
 				{
-					param_name.Trim();
+					const size_t line_length = static_cast<size_t>(line.GetLength());
+					const size_t index = static_cast<size_t>(line.FindFirstOf('='));
+					if (index == string::npos)
+					{
+						myfile.close();
+						throw CEIBException(ConfigFileError, "Error in line %d: missing \"=\" character", line_num);
+						return false;
+					}
+					if(index == line_length - 1){
+						myfile.close();
+						throw CEIBException(ConfigFileError, "Error in line %d: missing parameter value", line_num);
+					}
+					CString param_name = line.SubString(0, static_cast<int>(index));
+					CString param_value = line.SubString(static_cast<int>(index + 1), static_cast<int>(line_length - index - 1));
+					if(!record_name.IsEmpty())
+					{
+						param_name.Trim();
 					param_value.Trim();
 					OnReadParamComplete(record,param_name,param_value);
 				}
@@ -151,13 +158,7 @@ public:
 					throw CEIBException(ConfigFileError, "Error in line %d : Empty brackets", line_num);
 				}
 			}
-			else
-			{
-				myfile.close();
-				throw CEIBException(ConfigFileError, "Error in line %d: missing \"=\" character", line_num);
-				return false;
 			}
-		}
 		if(!record_name.IsEmpty())
 		{
 			OnReadRecordComplete(record);

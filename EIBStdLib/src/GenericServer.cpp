@@ -6,6 +6,8 @@ using namespace EibStack;
 CGenericServer::CGenericServer(char network_id) : 
 _network_id(network_id),
 _status(STATUS_DISCONNECTED),
+_session_id(0),
+_eib_port(0),
 _thread(NULL),
 _log(NULL),
 _ifc_mode(UNDEFINED_MODE)

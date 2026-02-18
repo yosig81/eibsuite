@@ -219,7 +219,7 @@ void v_assign_int_to_string (TIXML_STRING & S_string, int i_val)
 {
    char ca_int [80];
 
-   sprintf (ca_int, "%d", i_val);
+   snprintf(ca_int, sizeof(ca_int), "%d", i_val);
    S_string = ca_int;
 }
 
@@ -229,7 +229,7 @@ void v_assign_double_to_string (TIXML_STRING & S_string, double d_val)
 {
    char ca_int [80];
 
-   sprintf (ca_int, "%f", d_val);
+   snprintf(ca_int, sizeof(ca_int), "%f", d_val);
    while (ca_int [strlen (ca_int) - 1] == '0')
       ca_int [strlen (ca_int) - 1] = 0;
    if (ca_int [strlen (ca_int) - 1] == '.')

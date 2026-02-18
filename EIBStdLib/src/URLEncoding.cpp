@@ -16,12 +16,12 @@ CString URLEncoder::Encode(const CString& str)
 		}else if(buff[i] == ' ')
 		{
 			ret += "+";
-		}else 
-		{
-			char tmp[6];
-			sprintf(tmp,"%%%x",buff[i]);
-			ret += tmp;
-		}
+			}else 
+			{
+				char tmp[6];
+				snprintf(tmp, sizeof(tmp), "%%%x", static_cast<unsigned char>(buff[i]));
+				ret += tmp;
+			}
 	}
 	delete[] buff;
 	return ret;
@@ -55,15 +55,16 @@ CString URLEncoder::Decode(const CString& str)
 			ret += " ";
 		}
 		else if(buff[i] == '%')
-		{
-			char tmp[4];
-			char hex[4];			
-			hex[0] = buff[++i];
-			hex[1] = buff[++i];
-			hex[2] = '\0';		
-			sprintf(tmp,"%c",ConvertToDec(hex));
-			ret += tmp;
-		}
+			{
+				char tmp[4];
+				char hex[4];			
+				hex[0] = buff[++i];
+				hex[1] = buff[++i];
+				hex[2] = '\0';		
+				tmp[0] = static_cast<char>(ConvertToDec(hex));
+				tmp[1] = '\0';
+				ret += tmp;
+			}
 		else 
 		{
 			ret += buff[i];
@@ -75,7 +76,7 @@ CString URLEncoder::Decode(const CString& str)
 
 int URLEncoder::ConvertToDec(const char* hex) {
 	char buff[12];
-	sprintf(buff,"%s",hex);
+	snprintf(buff, sizeof(buff), "%s", hex);
 	int ret = 0;
 	int len = strlen(buff);
 	for(int i=0;i<len;i++) {

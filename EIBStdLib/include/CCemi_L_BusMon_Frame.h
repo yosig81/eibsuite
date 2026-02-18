@@ -15,6 +15,8 @@ namespace EibStack
 class EIB_STD_EXPORT CCemi_L_BusMon_Frame : public ICemiFrame, public CEIBNetPacket<CEMI_L_BUSMON_IND>
 {
 public:
+	using CEIBNetPacket<CEMI_L_BUSMON_IND>::FillBuffer;
+
 	//CCemi_L_BusMon_Frame();
 	CCemi_L_BusMon_Frame(const CCemi_L_BusMon_Frame& rhs);
 	CCemi_L_BusMon_Frame(unsigned char* data, int len);

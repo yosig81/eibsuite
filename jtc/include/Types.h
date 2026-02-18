@@ -181,9 +181,9 @@ public:
     char*
     toString(char* buf,	size_t len) const
     {
-	char str[128];
+	char str[128] = {0};
 #if defined(HAVE_POSIX_THREADS)
-	sprintf(str, "%lu", (unsigned long) m_id);
+	snprintf(str, sizeof(str), "%lu", (unsigned long) m_id);
 #endif
 	buf[len - 1] = '\0';
 	return strncpy(buf, str, len - 1);

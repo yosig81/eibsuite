@@ -41,6 +41,8 @@ enum SupportedServices
 class EIB_STD_EXPORT CDescriptionResponse : public CEIBNetPacket<EIBNETIP_DESCRIPTION_RESPONSE>
 {
 public:
+	using CEIBNetPacket<EIBNETIP_DESCRIPTION_RESPONSE>::FillBuffer;
+
 	CDescriptionResponse();
 	CDescriptionResponse(KNXMedium knxMedium,
 						 const CEibAddress& devAddr,
