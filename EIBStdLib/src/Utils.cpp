@@ -3,17 +3,16 @@
 
 void CUtils::ReadFile(const CString& full_name, CString& content)
 {
+	content = EMPTY_STRING;
 	ifstream myfile;
 	myfile.open(full_name.GetBuffer(),ios::in);
 	if (myfile.fail()){
-		content = EMPTY_STRING;
 		return;
 	}
 
 	CString line;
-	while (!myfile.eof())
+	while (getline(myfile, line.GetSTDString()))
 	{
-		getline(myfile,line.GetSTDString());
 		content += line;
 		content += LINE_BREAK;
 	}
@@ -21,22 +20,23 @@ void CUtils::ReadFile(const CString& full_name, CString& content)
 
 void CUtils::SaveFile(const CString& full_name, const CString& content)
 {
+	ofstream file(full_name.GetBuffer(), ios::out | ios::binary | ios::trunc);
+	if (!file.is_open()){
+		throw CEIBException(FileError, "Cannot open file for write");
+	}
+	file.write(content.GetBuffer(), static_cast<streamsize>(content.GetLength()));
+	if (!file.good()){
+		throw CEIBException(FileError, "Cannot write file");
+	}
 }
 
 int CUtils::GetFileSize(const CString& full_name)
 {
-	ofstream _file;
-	_file.open(full_name.GetBuffer(), std::ios_base::binary | std::ios_base::in);
-	if (!_file.good() || _file.eof() || !_file.is_open()) 
-	{
-		//error
+	ifstream file(full_name.GetBuffer(), ios::binary | ios::ate);
+	if (!file.is_open()){
+		return 0;
 	}
-	_file.seekp(0, std::ios_base::beg);
-	std::ifstream::pos_type begin_pos = _file.tellp();
-	_file.seekp(0, std::ios_base::end);
-	int size = static_cast<int>(_file.tellp() - begin_pos);
-	_file.close();
-	return size;
+	return static_cast<int>(file.tellg());
 }
 
 void CUtils::GetTimeStrForFile(CString& time_str)

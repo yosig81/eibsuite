@@ -33,7 +33,11 @@ bool CDirectory::Change(const CString& path)
 
 bool CDirectory::Delete(const CString& path)
 {
-	return true;
+#ifdef WIN32
+	return (_rmdir(path.GetBuffer()) == 0);
+#else
+	return (rmdir(path.GetBuffer()) == 0);
+#endif
 }
 
 CString CDirectory::CurrentDirectory()

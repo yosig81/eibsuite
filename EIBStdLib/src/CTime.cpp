@@ -60,20 +60,24 @@ CTime::CTime(const int day, const int month, const int year,const int hour, cons
 // of the format: Tue May 03 21:51:03 1994
 CTime::CTime(const char *time, bool local_time)
 {
-	int hour, min, sec, day, month, year;
-	char month_s[10], trash;
-	char day_s[10], hour_s[10], min_s[10];
-	char year_s[10];
+	int hour = 0, min = 0, sec = 0, day = 0, month = 0, year = 0;
+	char month_s[10] = {0};
+	char day_name[10] = {0};
 
-	if (sscanf(time, "%9s %9s %4s %2s:%2s %c",day_s, month_s, year_s,hour_s, min_s, &trash) != 5) {
-		throw CEIBException(SystemError,"Cannot initialize time class");
+	// Supported inputs:
+	// 1) ctime-like: "Thu Jan 02 00:00:00 1970"
+	// 2) legacy short: "02 Jan 1970 00:00"
+	int parsed = sscanf(time, "%9s %9s %d %d:%d:%d %d",
+		day_name, month_s, &day, &hour, &min, &sec, &year);
+	if (parsed != 7) {
+		parsed = sscanf(time, "%d %9s %d %d:%d",
+			&day, month_s, &year, &hour, &min);
+		if (parsed != 5) {
+			throw CEIBException(SystemError,"Cannot initialize time class");
+		}
+		sec = 0;
 	}
 
-	day = atoi(day_s);
-	hour = atoi(hour_s);
-	min = atoi(min_s);
-	sec = 0;
-	year = atoi(year_s);
 	// NOTE: struct tm months are 0 to 11
 	if (!strcmp(month_s,"Jan")) month = 0 ;
 	else if (!strcmp(month_s,"Feb")) month = 1 ;

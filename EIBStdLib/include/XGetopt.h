@@ -17,10 +17,14 @@
 
 #include "EibStdLib.h"
 
+#ifdef WIN32
 extern EIB_STD_EXPORT int optind;
 extern EIB_STD_EXPORT int opterr;
 extern EIB_STD_EXPORT char *optarg;
 
 int EIB_STD_EXPORT getopt(int argc, char *argv[], char *optstring);
+#else
+#include <unistd.h>
+#endif
 
 #endif //XGETOPT_H
