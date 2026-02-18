@@ -1,6 +1,85 @@
 #include "LogFile.h"
 #include "ConsoleColor.h"
 
+namespace {
+bool IsPathSeparator(char c)
+{
+	return c == '/' || c == '\\';
+}
+
+void EnsureParentDirectoryExists(const CString& file_name)
+{
+	const char* full_path = file_name.GetBuffer();
+	if (full_path == NULL || full_path[0] == '\0')
+	{
+		return;
+	}
+
+	const char* sep = strrchr(full_path, '/');
+	const char* back_sep = strrchr(full_path, '\\');
+	if (back_sep != NULL && (sep == NULL || back_sep > sep))
+	{
+		sep = back_sep;
+	}
+	if (sep == NULL)
+	{
+		return;
+	}
+
+	const int dir_len = static_cast<int>(sep - full_path);
+	if (dir_len <= 0)
+	{
+		return;
+	}
+
+	string dir(file_name.SubString(0, dir_len).GetBuffer());
+	for (size_t i = 0; i < dir.size(); ++i)
+	{
+		if (dir[i] == '\\')
+		{
+			dir[i] = '/';
+		}
+	}
+
+	string current;
+	size_t pos = 0;
+	if (!dir.empty() && IsPathSeparator(dir[0]))
+	{
+		current = PATH_DELIM.GetBuffer();
+		pos = 1;
+	}
+
+	while (pos <= dir.size())
+	{
+		size_t next = dir.find('/', pos);
+		const size_t len = (next == string::npos) ? (dir.size() - pos) : (next - pos);
+		if (len > 0)
+		{
+			if (!current.empty() && current[current.size() - 1] != PATH_DELIM.GetBuffer()[0])
+			{
+				current += PATH_DELIM.GetBuffer();
+			}
+			current += dir.substr(pos, len);
+
+			const CString current_dir(current);
+			if (!CDirectory::IsExist(current_dir))
+			{
+				if (!CDirectory::Create(current_dir) && !CDirectory::IsExist(current_dir))
+				{
+					throw CEIBException(FileError, "Cannot initialize log folder: %s", current_dir.GetBuffer());
+				}
+			}
+		}
+
+		if (next == string::npos)
+		{
+			break;
+		}
+		pos = next + 1;
+	}
+}
+} // namespace
+
 CLogFile::CLogFile():
 _print2screen(true),
 _log_level(LOG_LEVEL_INFO),
@@ -55,6 +134,7 @@ void CLogFile::Init(const CString& file_name)
 		return;
 	}
 
+	EnsureParentDirectoryExists(_file_name);
 	RotateLogIfNeeded();
 
 	_file.clear();
@@ -146,6 +226,7 @@ void CLogFile::Log(LogLevel level, const char* format,...)
 
 	if (HasFileTarget())
 	{
+		EnsureParentDirectoryExists(_file_name);
 		RotateLogIfNeeded();
 		_file.clear();
 		_file.open(_file_name.GetBuffer(), ios::out | ios::app);

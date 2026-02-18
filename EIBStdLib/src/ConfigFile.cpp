@@ -54,6 +54,8 @@ bool CConfigFile::LoadFromFile(const CString &file_name)
 	{
 		int index = (int)string::npos;
 		getline(myfile,line.GetSTDString());
+		line.Trim('\r');
+		line.Trim('\n');
 		line.Trim();
 		if(line.GetLength() < 2){
 			continue;
@@ -92,7 +94,11 @@ bool CConfigFile::LoadFromFile(const CString &file_name)
 			CString value = line.SubString(index + 1,line.GetLength() - index - 1);
 			if(!block.GetName().IsEmpty())
 			{
+				name.Trim('\r');
+				name.Trim('\n');
 				name.Trim();
+				value.Trim('\r');
+				value.Trim('\n');
 				value.Trim();
 				conf_param.SetName(name);
 				conf_param.SetValue(value);

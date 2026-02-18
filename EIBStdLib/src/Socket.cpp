@@ -7,6 +7,7 @@
   #include <sys/types.h>       // For data types
   #include <sys/socket.h>      // For socket(), connect(), send(), and recv()
   #include <netdb.h>           // For gethostbyname()
+  #include <ifaddrs.h>
   #include <arpa/inet.h>       // For inet_addr()
   #include <unistd.h>          // For close()
   #include <netinet/in.h>      // For sockaddr_in
@@ -175,36 +176,34 @@ CString Socket::LocalAddress(int interface_index) throw(SocketException)
 #else
 CString Socket::LocalAddress(const CString& interface_name) throw(SocketException)
 {
-	struct ifreq   buffer[32];
-	struct ifconf  intfc;
-	int fd;
-
-	intfc.ifc_len = sizeof(buffer);
-	intfc.ifc_buf = (char*) buffer;
-
-	if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+	struct ifaddrs* ifaddr = NULL;
+	if (getifaddrs(&ifaddr) != 0)
 	{
-		throw SocketException("Socket creation failed (socket())", true);
+		throw SocketException("getifaddrs() failed", true);
 	}
 
-	if (ioctl(fd, SIOCGIFCONF, &intfc) < 0)
+	for (struct ifaddrs* ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next)
 	{
-		::close(fd);
-		throw SocketException("IOCTL Failed. (Get net interface configuration)", true);
-	}
-
-	struct ifreq *item = NULL;
-	for(unsigned int i=0; i< intfc.ifc_len / sizeof(struct ifreq); i++)
-	{
-		item = &intfc.ifc_req[i];
-		CString ifname = item->ifr_name;
-		if(ifname == interface_name){
-			CString ret(inet_ntoa(((struct sockaddr_in *)&item->ifr_addr)->sin_addr));
-			::close(fd);
-			return ret;
+		if (ifa->ifa_name == NULL || ifa->ifa_addr == NULL)
+		{
+			continue;
 		}
+		if (ifa->ifa_addr->sa_family != AF_INET)
+		{
+			continue;
+		}
+		if (strcmp(ifa->ifa_name, interface_name.GetBuffer()) != 0)
+		{
+			continue;
+		}
+
+		const struct sockaddr_in* sin = (const struct sockaddr_in*)ifa->ifa_addr;
+		CString ret(inet_ntoa(sin->sin_addr));
+		freeifaddrs(ifaddr);
+		return ret;
 	}
-	::close(fd);
+
+	freeifaddrs(ifaddr);
 	CString err = "Cannot find network interface with name \"";
 	err += interface_name;
 	err += "\"!!!";

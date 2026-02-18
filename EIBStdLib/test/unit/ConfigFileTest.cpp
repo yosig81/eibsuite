@@ -142,3 +142,40 @@ TEST_F(ConfigFileTest, Load_MalformedFileThrows) {
 
     std::remove(path.GetBuffer());
 }
+
+TEST_F(ConfigFileTest, Load_CrlfLines_TrimmedWithoutTrailingCarriageReturn) {
+    if (!CDirectory::IsExist(CURRENT_CONF_FOLDER)) {
+        ASSERT_TRUE(CDirectory::Create(CURRENT_CONF_FOLDER));
+    }
+
+    CString file_name("phase2_crlf_config_");
+    file_name += static_cast<int>(getpid());
+    file_name += ".cfg";
+    CString path = CURRENT_CONF_FOLDER + file_name;
+
+    std::ofstream f(path.GetBuffer(), std::ios::out | std::ios::trunc | std::ios::binary);
+    ASSERT_TRUE(f.good());
+    f << "[network]\r\n";
+    f << "listen_interface = en0\r\n";
+    f << "port = 3671\r\n";
+    f.close();
+
+    ConfigFileHarness cfg;
+    ASSERT_TRUE(cfg.Load(file_name));
+    ASSERT_EQ(1, static_cast<int>(cfg.Blocks().size()));
+
+    CConfigBlock loaded = cfg.Blocks().front();
+    ASSERT_EQ(2, static_cast<int>(loaded.GetParams().size()));
+
+    bool saw_if = false;
+    list<CConfParam>::iterator it;
+    for (it = loaded.GetParams().begin(); it != loaded.GetParams().end(); ++it) {
+        if (it->GetName() == "listen_interface") {
+            saw_if = true;
+            EXPECT_STREQ("en0", it->GetValueConst().GetBuffer());
+        }
+    }
+    EXPECT_TRUE(saw_if);
+
+    std::remove(path.GetBuffer());
+}
