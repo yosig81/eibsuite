@@ -16,9 +16,10 @@
 #include "EibStdLib.h"
 #include "CString.h"
 #include "DataBuffer.h"
-#include "Socket.h"
 #include <map>
 #include <exception>
+
+class TCPSocket;
 
 #define IS_LOWER_CASE_LATIN_CHAR(c) ((int)c >= 97 && (int)c <= 122))
 #define IS_UPPER_CASE_LATIN_CHAR(c) ((int)c >= 65 && (int)c <= 90))

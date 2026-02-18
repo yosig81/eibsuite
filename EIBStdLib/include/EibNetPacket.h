@@ -23,6 +23,7 @@ public:
 	{
 		size_t size = sizeof(_header);// + sizeof(_data);
 		memcpy(&this->_header,data,size);
+		_header.servicetype = htons(_header.servicetype);
 		_header.totalsize = htons(_header.totalsize);
 		data += HEADER_SIZE_10;
 		ASSERT_ERROR(_header.headersize == HEADER_SIZE_10,"Incorrect header size in packet");

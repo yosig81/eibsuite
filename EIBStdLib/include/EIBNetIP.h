@@ -195,52 +195,52 @@
 #pragma pack(1)     /* set alignment to 1 byte boundary */
 
 typedef struct EIB_STD_EXPORT{
-    byte headersize;
-    byte version;
+    ::byte headersize;
+    ::byte version;
     word servicetype;
     word totalsize;
 } EIBNETIP_HEADER;
 
 typedef struct EIB_STD_EXPORT{
     EIBNETIP_HEADER head;
-    byte *data;
+    ::byte *data;
 } EIBNETIP_PACKET;
 
 typedef struct EIB_STD_EXPORT{
-    byte structlength;
-    byte hostprotocol;
-    byte ip1;
-    byte ip2;
-    byte ip3;
-    byte ip4;
+    ::byte structlength;
+    ::byte hostprotocol;
+    ::byte ip1;
+    ::byte ip2;
+    ::byte ip3;
+    ::byte ip4;
     word port;
 } EIBNETIP_HPAI;
 
 typedef struct EIB_STD_EXPORT{
-	byte  structlength;
-	byte  connectiontypecode;
-	byte  protocolindependentdata;               // these two fields should be variable length
-	byte  protocoldependentdata;                 // but we don't use it anyway
+	::byte  structlength;
+	::byte  connectiontypecode;
+	::byte  protocolindependentdata;               // these two fields should be variable length
+	::byte  protocoldependentdata;                 // but we don't use it anyway
 } EIBNETIP_CRI_CRD;
 
 typedef struct EIB_STD_EXPORT{
-    byte structlength;
-    byte descriptiontypecode;
-    byte knxmedium;
-    byte devicestatus;
+    ::byte structlength;
+    ::byte descriptiontypecode;
+    ::byte knxmedium;
+    ::byte devicestatus;
     word eibaddress;
     word projectinstallationidentifier;
-    byte serialnumber[6];
-    byte multicastaddress[4];
-    byte macaddress[6];
-    byte name[30];
+    ::byte serialnumber[6];
+    ::byte multicastaddress[4];
+    ::byte macaddress[6];
+    ::byte name[30];
 } EIBNETIP_DEVINF_DIB;
 
 
 typedef struct EIB_STD_EXPORT{
-    byte structlength;
-    byte descriptiontypecode;
-    byte *data;
+    ::byte structlength;
+    ::byte descriptiontypecode;
+    ::byte *data;
     /*
     word serviceidandversion1; // EIBNETIP_CORE
     word serviceidandversion2; // EIBNETIP_DEVMGMT
@@ -250,10 +250,10 @@ typedef struct EIB_STD_EXPORT{
 } EIBNETIP_SUPPFAM_DIB;
 
 typedef struct EIB_STD_EXPORT{
-    byte structlength;
-    byte descriptiontypecode;
+    ::byte structlength;
+    ::byte descriptiontypecode;
     word manufacturerID;
-    byte *data;
+    ::byte *data;
 } EIBNETIP_MANUFACTURER_DIB;
 
 typedef struct EIB_STD_EXPORT{
@@ -272,8 +272,8 @@ typedef struct EIB_STD_EXPORT {
 } EIBNETIP_DESCRIPTION_REQUEST;
 
 typedef struct {
-    byte channelid;
-    byte status;
+    ::byte channelid;
+    ::byte status;
     EIBNETIP_HPAI dataendpoint;
     EIBNETIP_CRI_CRD crd;
 } EIBNETIP_CONNECT_RESPONSE;
@@ -285,32 +285,32 @@ typedef struct {
 } EIBNETIP_CONNECT_REQUEST;
 
 typedef struct EIB_STD_EXPORT{
-    byte channelid;
-    byte status;
+    ::byte channelid;
+    ::byte status;
 } EIBNETIP_CONNECTIONSTATE_RESPONSE;
 
 typedef struct EIB_STD_EXPORT{
-    byte channelid;
-    byte reserved;
+    ::byte channelid;
+    ::byte reserved;
     EIBNETIP_HPAI controlendpoint;
 } EIBNETIP_CONNECTIONSTATE_REQUEST;
 
 typedef struct EIB_STD_EXPORT{
-    byte channelid;
-    byte status;
+    ::byte channelid;
+    ::byte status;
 } EIBNETIP_DISCONNECT_RESPONSE;
 
 typedef struct EIB_STD_EXPORT{
-    byte channelid;
-    byte reserved;
+    ::byte channelid;
+    ::byte reserved;
     EIBNETIP_HPAI controlendpoint;
 } EIBNETIP_DISCONNECT_REQUEST;
 
 typedef struct EIB_STD_EXPORT{
-    byte structlength;
-    byte channelid;
-    byte sequencecounter;
-    byte typespecific;
+    ::byte structlength;
+    ::byte channelid;
+    ::byte sequencecounter;
+    ::byte typespecific;
 } EIBNETIP_COMMON_CONNECTION_HEADER;
 
 typedef struct EIB_STD_EXPORT{

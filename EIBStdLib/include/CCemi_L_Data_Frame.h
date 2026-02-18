@@ -77,7 +77,7 @@ public:
 
 
 private:
-	void CopyAddilData(byte acpi_len, const unsigned char* data);
+	void CopyAddilData(::byte acpi_len, const unsigned char* data);
 
 private:
 	CEMI_L_DATA_MESSAGE _data;

@@ -23,7 +23,7 @@ public:
      */
 	CConnectionStateResponse(unsigned char* data);
 	
-	CConnectionStateResponse(byte channelid, byte status);
+	CConnectionStateResponse(::byte channelid, ::byte status);
 
 	/**
 	Destructor

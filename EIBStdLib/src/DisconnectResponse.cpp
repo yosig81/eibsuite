@@ -20,6 +20,21 @@ CDisconnectResponse::~CDisconnectResponse()
 {
 }
 
+CString CDisconnectResponse::GetStatusString() const
+{
+	switch (_data.status)
+	{
+		case (E_CONNECTION_ID):
+			return ("Wrong channel id");
+		case (E_NO_ERROR):
+			return ("Connection OK");
+		default:
+			return ("unknown status");
+	}
+
+	return EMPTY_STRING;
+}
+
 void CDisconnectResponse::FillBuffer(unsigned char* buffer, int max_length)
 {
 	CEIBNetPacket<EIBNETIP_DISCONNECT_RESPONSE>::FillBuffer(buffer,max_length);

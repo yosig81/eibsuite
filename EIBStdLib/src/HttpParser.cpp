@@ -1,4 +1,5 @@
 #include "HttpParser.h"
+#include "Socket.h"
 
 // some constants
 char CR = 13;             // ASCII carriage return
@@ -175,6 +176,9 @@ INTERNAL_PARSER_STATUS CHttpParser::ParseRequestLine(CHttpRequest& request,const
 	}
 
 	if (include_params){
+		// Preserve the request URI part before '?' while parsing query params.
+		CString uri(&data[position],new_pos - position - 1);
+		request.SetRequestURI(uri);
 		int current = new_pos;
 		while(data[current] != SPACE){
 			if(data[current] == PARAMETER_SEPERATOR)

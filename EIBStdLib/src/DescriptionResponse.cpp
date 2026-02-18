@@ -15,6 +15,7 @@ _medium(MEDIUM_UNKNOWN)
 	//Note: this version of the constructor is used ONLY in option 2 !!!
 	_data.manufacturer = NULL;
 	_data.supported.data = NULL;
+	_header.totalsize = HEADER_SIZE_10;
 }
 
 CDescriptionResponse::CDescriptionResponse(
@@ -29,6 +30,8 @@ CDescriptionResponse::CDescriptionResponse(
 		 ):
 CEIBNetPacket<EIBNETIP_DESCRIPTION_RESPONSE>(DESCRIPTION_RESPONSE)
 {
+	int servicesMask = suppServices;
+
 	EIBNETIP_DEVINF_DIB* devinfodib = &_data.devicehardware;
 
 	devinfodib->structlength = sizeof(EIBNETIP_DEVINF_DIB);
@@ -60,9 +63,10 @@ CEIBNetPacket<EIBNETIP_DESCRIPTION_RESPONSE>(DESCRIPTION_RESPONSE)
 	EIBNETIP_SUPPFAM_DIB* supporteddib = &_data.supported;
 
 	//fast algorithm to count the number of set bits in an integer.
-	suppServices = suppServices - ((suppServices >> 1) & 0x55555555);
-	suppServices = (suppServices & 0x33333333) + ((suppServices >> 2) & 0x33333333);
-	int sum = ((suppServices + ((suppServices >> 4) & 0xF0F0F0F)) * 0x1010101) >> 24;
+	int tmp = servicesMask;
+	tmp = tmp - ((tmp >> 1) & 0x55555555);
+	tmp = (tmp & 0x33333333) + ((tmp >> 2) & 0x33333333);
+	int sum = ((tmp + ((tmp >> 4) & 0xF0F0F0F)) * 0x1010101) >> 24;
 
 	if(sum > 0){
 		supporteddib->structlength = (sum * 2) + 2;
@@ -73,19 +77,19 @@ CEIBNetPacket<EIBNETIP_DESCRIPTION_RESPONSE>(DESCRIPTION_RESPONSE)
 	}
 	supporteddib->descriptiontypecode = SUPP_SVC_FAMILIES;
 	sum = 0;
-	if(suppServices & SERVICE_CORE){
+	if(servicesMask & SERVICE_CORE){
 		supporteddib->data[sum++] = EIBNETIP_CORE;
 		supporteddib->data[sum++] = 0x01;
 	}
-	if(suppServices & SERVICE_DEV_MNGMT){
+	if(servicesMask & SERVICE_DEV_MNGMT){
 		supporteddib->data[sum++] = EIBNETIP_DEVMGMT;
 		supporteddib->data[sum++] = 0x01;
 	}
-	if(suppServices & SERVICE_TUNNELING){
+	if(servicesMask & SERVICE_TUNNELING){
 		supporteddib->data[sum++] = EIBNETIP_TUNNELING;
 		supporteddib->data[sum++] = 0x01;
 	}
-	if(suppServices & SERVICE_ROUTING){
+	if(servicesMask & SERVICE_ROUTING){
 		supporteddib->data[sum++] = EIBNETIP_ROUTING;
 		supporteddib->data[sum++] = 0x01;
 	}
@@ -96,7 +100,8 @@ CEIBNetPacket<EIBNETIP_DESCRIPTION_RESPONSE>(DESCRIPTION_RESPONSE)
 	_medium = knxMedium;
 	_proj_install_id = projInstallId;
 	_status = 0; //OK
-	_supported_services = suppServices;
+	_supported_services = servicesMask;
+	_header.totalsize = HEADER_SIZE_10 + _data.devicehardware.structlength + _data.supported.structlength;
 
 	int i;
 	for (i = 0; i < 4; i++){
@@ -135,10 +140,27 @@ CDescriptionResponse::~CDescriptionResponse()
 
 void CDescriptionResponse::FillBuffer(unsigned char* buffer, int max_length, bool include_header)
 {
+	int payload_len = _data.devicehardware.structlength + _data.supported.structlength;
+	if (include_header) {
+		payload_len += HEADER_SIZE_10;
+	}
+	ASSERT_ERROR(max_length >= payload_len, "Buffer is too small");
+
 	if(include_header){
 		CEIBNetPacket<EIBNETIP_DESCRIPTION_RESPONSE>::FillBuffer(buffer,max_length);
+		buffer += HEADER_SIZE_10;
 	}
-	memcpy(buffer, &_data, GetDataSize());
+
+	// Device info DIB.
+	memcpy(buffer, &_data.devicehardware, _data.devicehardware.structlength);
+	buffer += _data.devicehardware.structlength;
+
+	// Supported services DIB.
+	buffer[0] = _data.supported.structlength;
+	buffer[1] = _data.supported.descriptiontypecode;
+	if (_data.supported.structlength > 2 && _data.supported.data != NULL) {
+		memcpy(&buffer[2], _data.supported.data, _data.supported.structlength - 2);
+	}
 }
 
 void CDescriptionResponse::Parse(unsigned char* data, int len)
@@ -189,7 +211,9 @@ void CDescriptionResponse::ParseDevInfoDIB(unsigned char* data)
 	_proj_install_id = _data.devicehardware.projectinstallationidentifier;
 	_status = _data.devicehardware.devicestatus;
 
-
+	_mcast_address.Clear();
+	_mac_address.Clear();
+	_serial_num.Clear();
 	int i;
 	for (i = 0; i < 4; i++){
 		_mcast_address += CString(_data.devicehardware.multicastaddress[i]);
@@ -203,7 +227,7 @@ void CDescriptionResponse::ParseDevInfoDIB(unsigned char* data)
 		_serial_num += CString::ToHexFormat(_data.devicehardware.serialnumber[i], false);
 		if(i < 5) _serial_num += '-';
 	}
-	_knx_address.Set(_data.devicehardware.eibaddress, false);
+	_knx_address.Set(htons(_data.devicehardware.eibaddress), false);
 	_name.Assign((char*)_data.devicehardware.name);
 }
 

@@ -98,8 +98,9 @@ bool CCemi_L_BusMon_Frame::ReadTimestamp(int typeID, int len, unsigned char* add
 	if (len != 2 && len != 4)
 		throw CEIBException(EibPacketError, "wrong timestamp info length");
 	
+	_data.timestamp = 0;
 	for (int i = 0; i < len; ++i){
-		_data.timestamp = (_data.timestamp << 8 | addInfo[i]) & 0xff;
+		_data.timestamp = (_data.timestamp << 8) | (addInfo[i] & 0xff);
 	}
 	//if (len == 4)
 	//	tstampType = TYPEID_TIMESTAMP_EXT;

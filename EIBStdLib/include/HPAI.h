@@ -1,7 +1,6 @@
 #ifndef __EIB_HPAI_HEADER__
 #define __EIB_HPAI_HEADER__
 
-#include "Socket.h"
 #include "CException.h"
 #include "EIBNetIP.h"
 

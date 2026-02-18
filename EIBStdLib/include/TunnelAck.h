@@ -2,7 +2,6 @@
 #define __TUNNELING_ACK_HEADER__
 
 #include "EIBNetIP.h"
-#include "cEMI.h"
 #include "CString.h"
 #include "EibNetPacket.h"
 

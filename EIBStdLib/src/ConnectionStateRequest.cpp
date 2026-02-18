@@ -15,6 +15,7 @@ CConnectionStateRequest::CConnectionStateRequest(unsigned char* data) :
 CEIBNetPacket<EIBNETIP_CONNECTIONSTATE_REQUEST>(data)
 {
 	_data.channelid = data[0];
+	_data.reserved = data[1];
 	CHPAI ctrl_endpoint(&data[2]);
 	memcpy(&_data.controlendpoint,ctrl_endpoint.ToByteArray(),ctrl_endpoint.GetDataSize()); 
 }

@@ -34,7 +34,7 @@ public:
 
 	virtual void FillBuffer(unsigned char* buffer, int max_len);
 
-	byte GetChannelId() const { return _data.channelid; }
+	::byte GetChannelId() const { return _data.channelid; }
 };
 
 }

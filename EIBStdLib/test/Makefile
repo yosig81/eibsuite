@@ -3,9 +3,12 @@
 
 # Compiler and flags
 CPP_COMPILER ?= g++
-CPPFLAGS := -I../include -I../include/xml -I../../jtc/include -I/usr/include
-CXXFLAGS := -O0 -g3 -Wall -fmessage-length=0 -std=c++11
-LDFLAGS := -L../linux -L../../jtc/linux -Wl,-rpath,../linux -Wl,-rpath,../../jtc/linux
+GTEST_ROOT ?= $(HOME)/Projects/googletest-v1.17.0
+GTEST_INCLUDE ?= $(GTEST_ROOT)/googletest/include
+GTEST_LIB_DIR ?= $(GTEST_ROOT)/manual-arm64
+CPPFLAGS := -I../include -I../include/xml -I../../jtc/include -I/usr/include -I$(GTEST_INCLUDE)
+CXXFLAGS := -O0 -g3 -Wall -fmessage-length=0 -std=c++17
+LDFLAGS := -L../linux -L../../jtc/linux -L$(GTEST_LIB_DIR) -Wl,-rpath,../linux -Wl,-rpath,../../jtc/linux
 LIBS := -lEIBStdLib -ljtc -lgtest -lgtest_main -lpthread
 
 # Directories

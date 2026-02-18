@@ -18,7 +18,7 @@ CEIBNetPacket<EIBNETIP_TUNNELING_ACK>(data)
 	_data.structlength = data[0];
 	_data.channelid = data[1];
 	_data.sequencecounter = data[2];
-	_data.typespecific = data[4];
+	_data.typespecific = data[3];
 }
 
 CTunnelingAck::~CTunnelingAck()

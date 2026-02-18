@@ -32,6 +32,11 @@ CDisconnectRequest::~CDisconnectRequest()
 {
 }
 
+unsigned short CDisconnectRequest::GetReserved()
+{
+	return _data.reserved;
+}
+
 void CDisconnectRequest::FillBuffer(unsigned char* buffer, int max_length)
 {
 	CEIBNetPacket<EIBNETIP_DISCONNECT_REQUEST>::FillBuffer(buffer,max_length);

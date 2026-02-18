@@ -20,6 +20,7 @@ _desc(knxMedium, devAddr, projInstallId, serial, multicatAddr, macAddr, name, su
 	//set the data of control endpoint
 	CHPAI ctrl_ep(ctrl_port,ctrl_addr);
 	memcpy(&_data.endpoint,ctrl_ep.ToByteArray(),ctrl_ep.GetDataSize());
+	_header.totalsize = HEADER_SIZE_10 + _data.endpoint.structlength + _desc.GetDataSize();
 }
 
 CSearchResponse::CSearchResponse(unsigned char* data, int len):

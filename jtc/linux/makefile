@@ -29,10 +29,18 @@ $(OUT_LIB): $(OBJS)
 install:
 	@$(CP) $(OUT_LIB) $(INSTALL_DIR)
 
+test:
+	@$(MAKE) -C ../tests all
+
+test-run:
+	@$(MAKE) -C ../tests run
+
+test-clean:
+	@$(MAKE) -C ../tests clean
+
 clean:
 	-$(RM) $(OBJS) $(OBJS:%.o=%.d) $(OUT_LIB)
 	-@echo ' '
 
-.PHONY: all clean dependents
+.PHONY: all clean dependents test test-run test-clean
 .SECONDARY:
-
