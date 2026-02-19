@@ -72,6 +72,13 @@ CString::CString(unsigned int str)
 	_str = os.str();
 }
 
+CString::CString(size_t str)
+{
+	ostringstream os;
+	os << str;
+	_str = os.str();
+}
+
 CString::CString(int64 str)
 {
 	ostringstream os;

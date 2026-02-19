@@ -35,6 +35,7 @@ void CClientsMgr::Init()
 	END_TRY_START_CATCH_ANY
 		CEIBServer::GetInstance().GetLog().SetConsoleColor(YELLOW);
 		LOG_INFO("Warning: Error in EIBServer Auto-Discovery service. Auto-Discovery service is now disabled.");
+		CEIBServer::GetInstance().GetLog().SetConsoleColor(WHITE);
 		_auto_discovery_enabled = false;
 	END_CATCH
 }
@@ -182,6 +183,7 @@ void CClientsMgr::InitClient(CString& source_address,int source_port,int keep_al
 	Client->Init(source_port,keep_alive_port,source_address);
 	CEIBServer::GetInstance().GetLog().SetConsoleColor(YELLOW);
 	LOG_INFO("[Clients Manager] New Client Initialized.");
+	CEIBServer::GetInstance().GetLog().SetConsoleColor(WHITE);
 	Client->start();
 }
 

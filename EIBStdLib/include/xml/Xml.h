@@ -46,6 +46,7 @@ public:
 	virtual void SetValue(char val) { SET_VALUE_T(val) }
 	virtual void SetValue(short val) { SET_VALUE_T(val) }
 	virtual void SetValue(unsigned short val) { SET_VALUE_T(val) }
+	virtual void SetValue(size_t val) { SET_VALUE_T(val) }
 	virtual void SetValue(const CString& val) { SET_VALUE_T(val) }
 
 	CString GetValue();

@@ -386,6 +386,13 @@ public:
   */
   void SetMulticastLoopBack(bool val) throw(SocketException);
 
+  /**
+  *   Set the outgoing interface for multicast datagrams
+  *   @param local_address IP address of the local interface to use
+  *   @exception SocketException thrown if unable to set the socket option
+  */
+  void SetMulticastInterface(const CString& local_address) throw(SocketException);
+
 private:
   void SetBroadcast();
 };

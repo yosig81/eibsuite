@@ -223,6 +223,7 @@ bool CClient::ExchangeKeys()
 	CLogFile& log = CEIBServer::GetInstance().GetLog();
 	log.SetConsoleColor(YELLOW);
 	LOG_INFO("[Clients Manager] Exchanging Keys with new client.");
+	log.SetConsoleColor(WHITE);
 
 	_sock.SetLocalPort(0);
 
@@ -237,6 +238,7 @@ bool CClient::ExchangeKeys()
 		_sock.SendTo(raw_data.GetBuffer(),raw_data.GetLength(),GetClientIP(),GetClientPort());
 		log.SetConsoleColor(YELLOW);
 		LOG_INFO("[Clients Manager] Send Server public key.");
+		log.SetConsoleColor(WHITE);
 		//wait for client interim key
 		char buffer[1024];
 		CString s_address;
@@ -268,12 +270,14 @@ bool CClient::ExchangeKeys()
 		if(!request.GetHeader(CLIENT_TYPE_HEADER,header)){
 			log.SetConsoleColor(YELLOW);
 			LOG_ERROR("[Clients Manager] Illegal http reply from client. Terminating connection");
+			log.SetConsoleColor(WHITE);
 			return false;
 		}
 		_client_type = header.GetValue().ToInt();
 		if(!request.GetHeader(DIFFIE_HELLAM_INTERIM,header)){
 			log.SetConsoleColor(YELLOW);
 			LOG_ERROR("[Clients Manager] Illegal http reply from client. Terminating connection");
+			log.SetConsoleColor(WHITE);
 			return false;
 		}
 		int64 r_interim = header.GetValue().ToInt64(),key;
@@ -281,6 +285,7 @@ bool CClient::ExchangeKeys()
 
 		log.SetConsoleColor(YELLOW);
 		LOG_INFO("[Clients Manager] Recevied Client public key.");
+		log.SetConsoleColor(WHITE);
 		//send reply back
 		reply.SetStatusCode(STATUS_OK);
 		reply.SetVersion(HTTP_1_0);
@@ -291,11 +296,13 @@ bool CClient::ExchangeKeys()
 		_sock.SendTo(raw_data.GetBuffer(),raw_data.GetLength(),GetClientIP(),GetClientPort());
 		log.SetConsoleColor(YELLOW);
 		LOG_INFO("[Clients Manager] Keys exchanged succesfuly.");
-		
+		log.SetConsoleColor(WHITE);
+
 		return true;
 	END_TRY_START_CATCH_SOCKET(e)
 		log.SetConsoleColor(YELLOW);
 		LOG_ERROR("[Clients Manager] Exchange keys error : %s",e.what());
+		log.SetConsoleColor(WHITE);
 		return false;
 	END_CATCH
 }
@@ -312,6 +319,7 @@ bool CClient::Authenticate(CUser& user)
 
 	log.SetConsoleColor(YELLOW);
 	LOG_INFO("[Clients Manager] Authenticating...");
+	log.SetConsoleColor(WHITE);
 
 	len = _sock.RecvFrom(buf,sizeof(buf),s_address,s_port);
 
@@ -353,6 +361,7 @@ bool CClient::Authenticate(CUser& user)
 
 	log.SetConsoleColor(YELLOW);
 	LOG_INFO("[Clients Manager] User \"%s\" Logged in successfully.",user.GetName().GetBuffer());
+	log.SetConsoleColor(WHITE);
 	_logged_in = true;
 
 	_policy._read = user.IsReadPolicyAllowed();
@@ -484,6 +493,7 @@ void CListenerThread::run()
 			if(++pcount % 5 == 0){
 				log.SetConsoleColor(YELLOW);
 				LOG_DEBUG("[%s] [Received] Heart Beat",client_name.GetBuffer());
+				log.SetConsoleColor(WHITE);
 			}
 			hearbeat_msg._header._client_type = EIB_TYPE_EIB_SERVER;
 			hearbeat_msg._header._msg_type = EIB_MSG_TYPE_KEEP_ALIVE_ACK;

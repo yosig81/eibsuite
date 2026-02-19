@@ -587,6 +587,16 @@ void UDPSocket::SetMulticastLoopBack(bool val) throw(SocketException)
 	}
 }
 
+void UDPSocket::SetMulticastInterface(const CString& local_address) throw(SocketException)
+{
+  struct in_addr iface;
+  iface.s_addr = inet_addr(local_address.GetBuffer());
+  if (setsockopt(sockDesc, IPPROTO_IP, IP_MULTICAST_IF, (raw_type *)&iface, sizeof(iface)) < 0)
+  {
+    throw SocketException("Set multicast interface failed (setsockopt())", true);
+  }
+}
+
 void UDPSocket::JoinGroup(const CString& local_address,const CString& multicastGroup) throw(SocketException)
 {
   struct ip_mreq multicastRequest;

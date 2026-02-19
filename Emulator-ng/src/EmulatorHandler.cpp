@@ -70,6 +70,11 @@ void CEmulatorHandler::Close()
 
 	_data_output_handler->Close();
 	_data_output_handler->join();
+
+	// Release thread handles now so they are not destroyed
+	// during static destruction when JTC may no longer be valid.
+	_input_handler = NULL;
+	_data_output_handler = NULL;
 }
 
 void CEmulatorHandler::DisconnectClients()
@@ -171,7 +176,7 @@ void CEmulatorHandler::FreeConnection(CEmulatorHandler::ConnectionState* s)
 	if(ptr != NULL){
 		int id = ptr->id;
 		_states[id] = NULL;
-		free(ptr);
+		delete ptr;
 		LOG_DEBUG("Resources for Connection %d Cleaned successfuly.",id);
 	}
 }
@@ -197,7 +202,7 @@ void CEmulatorHandler::CEmulatorInputHandler::Init()
 	START_TRY
 		//set the source port to default EIB Port (3671)
 		_local_addr = Socket::LocalAddress(_emulator->_server_conf->GetListenInterface());
-		_sock.SetLocalAddressAndPort(_local_addr,EIB_PORT);
+		_sock.SetLocalPort(EIB_PORT);
 		_local_port = _sock.GetLocalPort();
 		_sock.JoinGroup(_local_addr,EIB_MULTICAST_ADDRESS);
 	END_TRY_START_CATCH_SOCKET(e)
@@ -664,7 +669,6 @@ bool CEmulatorHandler::CEmulatorInputHandler::SendTunnelToClient(const CCemi_L_D
 
 void CEmulatorHandler::CEmulatorInputHandler::DisconnectClient(ConnectionState* s)
 {
-	//YGYG: need to send disconnect request to all connected clients.
 	START_TRY
 		JTCSynchronized sync(s->state_monitor);
 		if(s->is_connected){
@@ -673,15 +677,14 @@ void CEmulatorHandler::CEmulatorInputHandler::DisconnectClient(ConnectionState* 
 			req.FillBuffer(buffer, sizeof(buffer));
 			_sock.SendTo(buffer, req.GetTotalSize(), s->_remote_data_addr, s->_remote_data_port);
 			LOG_DEBUG("[Send] [Disconnect Request]");
-			JTCThread::sleep(200);
-			_emulator->FreeConnection(s);
+			s->is_connected = false;
 		}
 	END_TRY_START_CATCH(e)
-		LOG_ERROR("Error in SendTunnelToClient: %s",e.what());
+		LOG_ERROR("Error in DisconnectClient: %s",e.what());
 	END_TRY_START_CATCH_SOCKET(ex)
-		LOG_ERROR("Socket Error in SendTunnelToClient: %s",ex.what());
+		LOG_ERROR("Socket Error in DisconnectClient: %s",ex.what());
 	END_TRY_START_CATCH_ANY
-		LOG_ERROR("Unknown Error in SendTunnelToClient");
+		LOG_ERROR("Unknown Error in DisconnectClient");
 	END_CATCH
 
 }

@@ -147,19 +147,30 @@ bool CUtils::EnumNics(map<CString,CString>& nics)
 		return false;
 	}
 	/* Iterate through the list of interfaces. */
-	ifr         = ifc.ifc_req;
-	nInterfaces = ifc.ifc_len / sizeof(struct ifreq);
 	nics.clear();
-	for(i = 0; i < nInterfaces; i++)
+	char *ptr = buf;
+	char *end = buf + ifc.ifc_len;
+	while(ptr < end)
 	{
-		struct ifreq *item = &ifr[i];
-		pair<CString,CString> p;
-		p.first = item->ifr_name;
-		p.second = item->ifr_name;
-		p.second += " (";
-		p.second += inet_ntoa(((struct sockaddr_in *)&item->ifr_addr)->sin_addr);
-		p.second += ")";
-		nics.insert(nics.end(), p);
+		struct ifreq *item = (struct ifreq *)ptr;
+#ifdef __APPLE__
+		size_t len = IFNAMSIZ + item->ifr_addr.sa_len;
+		if(len < sizeof(struct ifreq))
+			len = sizeof(struct ifreq);
+#else
+		size_t len = sizeof(struct ifreq);
+#endif
+		if(item->ifr_addr.sa_family == AF_INET)
+		{
+			pair<CString,CString> p;
+			p.first = item->ifr_name;
+			p.second = item->ifr_name;
+			p.second += " (";
+			p.second += inet_ntoa(((struct sockaddr_in *)&item->ifr_addr)->sin_addr);
+			p.second += ")";
+			nics.insert(nics.end(), p);
+		}
+		ptr += len;
 	}
 	return true;
 #endif

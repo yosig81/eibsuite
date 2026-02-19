@@ -1,7 +1,7 @@
 #include "Emulator-ng.h"
 #include "cli.h"
 
-JTCInitialize init;
+static JTCInitialize s_jtc_init;
 CEIBEmulator CEIBEmulator::_instance;
 
 CEIBEmulator::CEIBEmulator() : 
@@ -65,6 +65,7 @@ bool CEIBEmulator::Init()
 		if(_db.IsEmpty()){
 			_log.SetConsoleColor(YELLOW);
 			LOG_INFO("Warning: Emulator Database is empty");
+			_log.SetConsoleColor(WHITE);
 		} else {
 			LOG_INFO("Initializing EIB Emulator Database...Successful.");
 		}
