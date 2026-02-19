@@ -61,6 +61,8 @@ public:
 	CString(bool str, bool camel_case = false);
 	/* Convert unsigned int to CString Constructor*/
 	CString(unsigned int str);
+	/* Convert size_t to CString Constructor*/
+	CString(size_t str);
 	/*!Convert int64 to CString Constructor*/
 	CString(int64 str);
 	/*!Convert double to CString Constructor*/

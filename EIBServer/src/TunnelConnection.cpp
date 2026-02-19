@@ -102,6 +102,8 @@ void CTunnelingConnection::InitConnectionParams()
 	if(auto_discover)
 	{
 		//send search request to multicast address
+		_data_sock.SetMulticastInterface(_ipaddress);
+		_data_sock.SetMulticastLoopBack(true);
 		CSearchRequest search_req(_data_sock.GetLocalPort(),_ipaddress);
 		search_req.FillBuffer(buffer,256);
 		_data_sock.SendTo(buffer,search_req.GetTotalSize(),EIB_MULTICAST_ADDRESS,EIB_PORT);

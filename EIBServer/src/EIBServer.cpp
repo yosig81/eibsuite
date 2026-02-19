@@ -134,6 +134,7 @@ bool CEIBServer::Init()
 	END_TRY_START_CATCH(e)
 		_log.SetConsoleColor(YELLOW);
 		LOG_INFO("Warning: %s",e.what());
+		_log.SetConsoleColor(WHITE);
 	END_CATCH
 
 	START_TRY
