@@ -28,7 +28,7 @@ CPPFLAGS := -I../include \
             -I$(GTEST_INCLUDE)
 CXXFLAGS := -O0 -g3 -Wall -fmessage-length=0 -std=c++17 -Wno-dynamic-exception-spec
 LDFLAGS := -L../linux -L$(GTEST_LIB_DIR) \
-           -Wl,-rpath,$(RPATH_ORIGIN)/../linux
+           -Wl,-rpath,'$(RPATH_ORIGIN)/../linux'
 LIBS := -ljtc -lgtest -lpthread
 
 # Directories

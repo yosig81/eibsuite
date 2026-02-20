@@ -42,8 +42,8 @@ else
 endif
 
 LDFLAGS := -L../../EIBStdLib/linux -L../../jtc/linux -L$(GTEST_LIB_DIR) \
-           -Wl,-rpath,$(RPATH_ORIGIN)/../../EIBStdLib/linux \
-           -Wl,-rpath,$(RPATH_ORIGIN)/../../jtc/linux
+           -Wl,-rpath,'$(RPATH_ORIGIN)/../../EIBStdLib/linux' \
+           -Wl,-rpath,'$(RPATH_ORIGIN)/../../jtc/linux'
 LIBS := -lEIBStdLib -ljtc -lgtest -lpthread
 
 # ---------------------------------------------------------------------------

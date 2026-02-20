@@ -25,7 +25,7 @@ endif
 
 CPPFLAGS := -I../include -I../include/xml -I../../jtc/include -I/usr/include -I$(GTEST_INCLUDE)
 CXXFLAGS := -O0 -g3 -Wall -fmessage-length=0 -std=c++17
-LDFLAGS := -L../linux -L../../jtc/linux -L$(GTEST_LIB_DIR) -Wl,-rpath,$(RPATH_ORIGIN)/../linux -Wl,-rpath,$(RPATH_ORIGIN)/../../jtc/linux
+LDFLAGS := -L../linux -L../../jtc/linux -L$(GTEST_LIB_DIR) -Wl,-rpath,'$(RPATH_ORIGIN)/../linux' -Wl,-rpath,'$(RPATH_ORIGIN)/../../jtc/linux'
 LIBS := -lEIBStdLib -ljtc -lgtest -lgtest_main -lpthread
 
 # Directories

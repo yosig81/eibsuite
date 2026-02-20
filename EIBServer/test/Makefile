@@ -31,8 +31,8 @@ else
 endif
 
 LDFLAGS := -L../../EIBStdLib/linux -L../../jtc/linux -L$(GTEST_LIB_DIR) \
-           -Wl,-rpath,$(RPATH_ORIGIN)/../../EIBStdLib/linux \
-           -Wl,-rpath,$(RPATH_ORIGIN)/../../jtc/linux
+           -Wl,-rpath,'$(RPATH_ORIGIN)/../../EIBStdLib/linux' \
+           -Wl,-rpath,'$(RPATH_ORIGIN)/../../jtc/linux'
 LIBS := -lEIBStdLib -ljtc -lgtest -lgtest_main -lpthread
 
 # EIBServer source files to compile (only the ones under test -- no Main.cpp, no EIBServer.cpp)
