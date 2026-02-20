@@ -112,8 +112,6 @@ void CEIBServerUsersConf::GetConnectedClients()
 	CClientConf client;
 	const map<CString,CUser>& users = CEIBServer::GetInstance().GetUsersDB().GetUsersList();
 	map<CString,CUser>::const_iterator it = users.begin();
-    list<CClientConf>::iterator list_it = _clients.begin();
-
 	for(it = users.begin();it!= users.end();++it)
 	{	
 		client._name = it->second.GetName();

@@ -21,9 +21,18 @@ CPPFLAGS := -I../include -I../include/conf \
             -I../../jtc/include \
             -I$(GTEST_INCLUDE)
 CXXFLAGS := -O0 -g3 -Wall -fmessage-length=0 -std=c++17 -Wno-dynamic-exception-spec
+
+# Platform-specific rpath: @loader_path on macOS, $ORIGIN on Linux
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+  RPATH_ORIGIN := @loader_path
+else
+  RPATH_ORIGIN := $$ORIGIN
+endif
+
 LDFLAGS := -L../../EIBStdLib/linux -L../../jtc/linux -L$(GTEST_LIB_DIR) \
-           -Wl,-rpath,@loader_path/../../EIBStdLib/linux \
-           -Wl,-rpath,@loader_path/../../jtc/linux
+           -Wl,-rpath,$(RPATH_ORIGIN)/../../EIBStdLib/linux \
+           -Wl,-rpath,$(RPATH_ORIGIN)/../../jtc/linux
 LIBS := -lEIBStdLib -ljtc -lgtest -lgtest_main -lpthread
 
 # EIBServer source files to compile (only the ones under test -- no Main.cpp, no EIBServer.cpp)

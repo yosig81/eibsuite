@@ -15,12 +15,20 @@ else
   GTEST_LIB_DIR ?= $(GTEST_ROOT)/manual-arm64
 endif
 
+# Platform-specific rpath: @loader_path on macOS, $ORIGIN on Linux
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+  RPATH_ORIGIN := @loader_path
+else
+  RPATH_ORIGIN := $$ORIGIN
+endif
+
 # Include paths
 CPPFLAGS := -I../include \
             -I$(GTEST_INCLUDE)
 CXXFLAGS := -O0 -g3 -Wall -fmessage-length=0 -std=c++17 -Wno-dynamic-exception-spec
 LDFLAGS := -L../linux -L$(GTEST_LIB_DIR) \
-           -Wl,-rpath,../linux
+           -Wl,-rpath,$(RPATH_ORIGIN)/../linux
 LIBS := -ljtc -lgtest -lpthread
 
 # Directories
@@ -58,7 +66,7 @@ run: $(TEST_EXECUTABLE)
 	@echo '========================================='
 	@echo 'Running JTC Unit Tests'
 	@echo '========================================='
-	@./$(TEST_EXECUTABLE); \
+	@DYLD_LIBRARY_PATH=../linux ./$(TEST_EXECUTABLE); \
 	EXIT_CODE=$$?; \
 	echo; \
 	if [ $$EXIT_CODE -eq 0 ]; then \

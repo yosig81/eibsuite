@@ -3,12 +3,29 @@
 
 # Compiler and flags
 CPP_COMPILER ?= g++
-GTEST_ROOT ?= $(HOME)/Projects/googletest-v1.17.0
-GTEST_INCLUDE ?= $(GTEST_ROOT)/googletest/include
-GTEST_LIB_DIR ?= $(GTEST_ROOT)/manual-arm64
+
+# Google Test: try Homebrew first, then user-built location
+GTEST_BREW := $(shell brew --prefix googletest 2>/dev/null)
+ifdef GTEST_BREW
+  GTEST_INCLUDE ?= $(GTEST_BREW)/include
+  GTEST_LIB_DIR ?= $(GTEST_BREW)/lib
+else
+  GTEST_ROOT ?= $(HOME)/Projects/googletest-v1.17.0
+  GTEST_INCLUDE ?= $(GTEST_ROOT)/googletest/include
+  GTEST_LIB_DIR ?= $(GTEST_ROOT)/manual-arm64
+endif
+
+# Platform-specific rpath: @loader_path on macOS, $ORIGIN on Linux
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+  RPATH_ORIGIN := @loader_path
+else
+  RPATH_ORIGIN := $$ORIGIN
+endif
+
 CPPFLAGS := -I../include -I../include/xml -I../../jtc/include -I/usr/include -I$(GTEST_INCLUDE)
 CXXFLAGS := -O0 -g3 -Wall -fmessage-length=0 -std=c++17
-LDFLAGS := -L../linux -L../../jtc/linux -L$(GTEST_LIB_DIR) -Wl,-rpath,../linux -Wl,-rpath,../../jtc/linux
+LDFLAGS := -L../linux -L../../jtc/linux -L$(GTEST_LIB_DIR) -Wl,-rpath,$(RPATH_ORIGIN)/../linux -Wl,-rpath,$(RPATH_ORIGIN)/../../jtc/linux
 LIBS := -lEIBStdLib -ljtc -lgtest -lgtest_main -lpthread
 
 # Directories
@@ -48,9 +65,15 @@ run: $(TEST_EXECUTABLE)
 	@echo '========================================='
 	@echo 'Running EIBStdLib Unit Tests'
 	@echo '========================================='
-	@./$(TEST_EXECUTABLE)
-	@echo
-	@echo 'Test run completed.'
+	@DYLD_LIBRARY_PATH=../linux:../../jtc/linux ./$(TEST_EXECUTABLE); \
+	EXIT_CODE=$$?; \
+	echo; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo 'Test run completed.'; \
+	else \
+		echo 'Test run completed with failures.'; \
+		exit $$EXIT_CODE; \
+	fi
 
 clean:
 	-$(RM) $(BUILD_DIR) $(TEST_EXECUTABLE)
