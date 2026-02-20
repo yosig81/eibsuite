@@ -20,7 +20,7 @@ CPPFLAGS := -I../include \
             -I$(GTEST_INCLUDE)
 CXXFLAGS := -O0 -g3 -Wall -fmessage-length=0 -std=c++17 -Wno-dynamic-exception-spec
 LDFLAGS := -L../linux -L$(GTEST_LIB_DIR) \
-           -Wl,-rpath,@loader_path/../linux
+           -Wl,-rpath,../linux
 LIBS := -ljtc -lgtest -lpthread
 
 # Directories
@@ -58,7 +58,7 @@ run: $(TEST_EXECUTABLE)
 	@echo '========================================='
 	@echo 'Running JTC Unit Tests'
 	@echo '========================================='
-	@DYLD_LIBRARY_PATH=../linux ./$(TEST_EXECUTABLE); \
+	@./$(TEST_EXECUTABLE); \
 	EXIT_CODE=$$?; \
 	echo; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
@@ -87,7 +87,7 @@ help:
 	@echo '  make clean   # Clean build artifacts'
 	@echo ''
 	@echo 'Run specific test suites:'
-	@echo '  DYLD_LIBRARY_PATH=../linux ./run_tests --gtest_filter=JTCMutex_Basic.*'
+	@echo '  ./run_tests --gtest_filter=JTCMutex_Basic.*'
 
 # Include dependency files
 -include $(BUILD_DIR)/*.d
