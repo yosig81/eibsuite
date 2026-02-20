@@ -10,6 +10,7 @@ public:
 	static void StartLoop();
 	static void PrintAvailableCmds();
 	static void HandleSendCommand();
+	static void HandleGenerateCommand();
 };
 
 #endif

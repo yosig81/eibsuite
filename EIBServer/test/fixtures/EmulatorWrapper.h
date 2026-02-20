@@ -24,4 +24,10 @@ void EmulatorSendIndication(const char* group_address,
                             const unsigned char* value,
                             int value_len);
 
+// Generate and send random indications from the emulator.
+// count: number of indications to send
+// delay_ms: delay between each indication in milliseconds
+// Uses physical address 15.15.255 to identify generated traffic.
+void EmulatorGenerateRandomIndications(int count, int delay_ms);
+
 #endif // EMULATOR_WRAPPER_H
