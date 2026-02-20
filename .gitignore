@@ -1,67 +1,8 @@
 .DS_Store
 
-# EIBStdLib Linux build outputs
-EIBStdLib/linux/*.o
-EIBStdLib/linux/*.d
-EIBStdLib/linux/*.so
-EIBStdLib/linux/cli
-EIBStdLib/linux/build*.log
-EIBStdLib/linux/xml/
-
-# EIBStdLib test outputs
-EIBStdLib/test/build/
-EIBStdLib/test/run_tests
-EIBStdLib/test/run_tests*.log
-
-# jtc build outputs
-jtc/linux/*.o
-jtc/linux/*.d
-jtc/linux/*.so
-
-# jtc test outputs
-jtc/tests/build/
-jtc/tests/run_tests
-jtc/tests/run_tests*.log
-
-# EIBServer build outputs
-EIBServer/linux/*.o
-EIBServer/linux/*.d
-EIBServer/linux/conf/
-EIBServer/linux/EIBServer
-
-# EIBServer test outputs
-EIBServer/test/build/
-EIBServer/test/run_tests
-EIBServer/test/run_tests*.log
-
-# EIBServer integration test outputs
-EIBServer/test/build_integ/
-EIBServer/test/run_integration_tests
-
-# EIBServer runtime files
-EIBServer/conf/
-EIBServer/logs/
-
-# WEBServer build outputs
-WEBServer/linux/*.o
-WEBServer/linux/*.d
-WEBServer/linux/conf/
-WEBServer/linux/logs/
-WEBServer/linux/WEBServer
-
-# Emulator build outputs
-Emulator-ng/linux/*.o
-Emulator-ng/linux/*.d
-Emulator-ng/linux/Emulator-ng
-
-# Top-level runtime files
-conf/
-logs/
-# Library symlinks (created at runtime)
-EIBServer/libjtc.so
-EIBServer/libEIBStdLib.so
-Emulator-ng/libjtc.so
-Emulator-ng/libEIBStdLib.so
-
 # CMake build output
 build/
+
+# Runtime files
+conf/
+logs/
