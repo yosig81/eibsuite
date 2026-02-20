@@ -119,7 +119,7 @@ void CEmulatorHandler::CheckConnectionsCleanup()
 	//check if any connection has expired
 	for(int i = 0; i < MAX_CONNS; i++)
 	{
-		if(_states[i] != NULL && _states[i]->_timeout.secTo() == 0){
+		if(_states[i] != NULL && _states[i]->_timeout.SecondsTo() == 0){
 			// Connection timeout. force close connection
 			LOG_ERROR("[Connection timeout] Closing connection with client %d.", _states[i]->channelid);
 			FreeConnection(_states[i]);

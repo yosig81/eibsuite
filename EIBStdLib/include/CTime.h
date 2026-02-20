@@ -10,29 +10,29 @@
 class EIB_STD_EXPORT CTime
 {
 private:
-	int _time_val;
+	time_t _time_val;
 	static bool _default_local_time;
-	static struct tm* EibTime(const int* timer);
-	static struct tm* EibGMTime(const int* timer);
-	static struct tm* EIBTtime_r(const int* timer, struct tm* res);
-	static struct tm* EibGMTime_r(const int* timer, struct tm* res);
+	static struct tm* EibTime(const time_t* timer);
+	static struct tm* EibGMTime(const time_t* timer);
+	static struct tm* EIBTtime_r(const time_t* timer, struct tm* res);
+	static struct tm* EibGMTime_r(const time_t* timer, struct tm* res);
 
 public:
 
 	CTime();
 	CTime(const CTime& time);
 
-	explicit CTime(int time);
+	explicit CTime(time_t time);
 	explicit CTime(struct tm *pTime);
 	explicit CTime(const char *time, bool local_time = false);
 	explicit CTime(const int day, const int month, const int year,const int hour=0, const int minutes=0,const int sec=0);
 	virtual ~CTime();
 
 	void Initialize();
-	int GetTime() const; //Returns a int that corresponds to this CTime object.
-	const int *GetTimePtr() const { return &_time_val;} //Returns a pointer to the attribute _time_val.
-	void SetTime(int t) { _time_val = t; }
-	int secTo() const; // Return how many seconds is ('current time' - time_val)
+	time_t GetTime() const; //Returns a time_t that corresponds to this CTime object.
+	const time_t *GetTimePtr() const { return &_time_val;} //Returns a pointer to the attribute _time_val.
+	void SetTime(time_t t) { _time_val = t; }
+	time_t SecondsTo() const; // Return how many seconds is ('current time' - time_val)
 
 	// Default time format preference (local vs UTC) for Format() with no args
 	static void SetDefaultLocalTime(bool local) { _default_local_time = local; }
@@ -45,7 +45,7 @@ public:
 
 	void SetNow();
 	void SetTimeZero();
-	int	GetTimeZero()	const;
+	time_t	GetTimeZero()	const;
 	bool IsTimeZero()	const;
 
 	// Supporting return of time string formats
@@ -61,15 +61,15 @@ public:
 	bool operator>=(const CTime&) const;
 
 	friend EIB_STD_EXPORT CTime  operator-(const CTime& t1, const CTime& t2);
-	friend EIB_STD_EXPORT CTime  operator-(const CTime& t1, const int t2);
+	friend EIB_STD_EXPORT CTime  operator-(const CTime& t1, const time_t t2);
 	CTime& operator-=(const CTime&);
-	CTime& operator-=(const int);
-	CTime& operator=(const int);
+	CTime& operator-=(const time_t);
+	CTime& operator=(const time_t);
 
 	friend EIB_STD_EXPORT CTime  operator+(const CTime& t1, const CTime& t2);
-	friend EIB_STD_EXPORT CTime  operator+(const CTime& t1, const int t2);
+	friend EIB_STD_EXPORT CTime  operator+(const CTime& t1, const time_t t2);
 	CTime& operator+=(const CTime&);
-	CTime& operator+=(const int);
+	CTime& operator+=(const time_t);
 
 	static bool SetLocalTime(const CTime &time);
 	static bool SetLocalDate(const CTime &time);

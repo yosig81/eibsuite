@@ -28,7 +28,7 @@ void CSessionManager::GenerateNewSession(const CString& user_name,CString& sessi
 	tmp += "_";
 	CTime now;
 	now.SetNow();
-	tmp += now.GetTime();
+	tmp += (int64)now.GetTime();
 
 	CDigest digest;
 	digest.HashString(tmp, session_id);

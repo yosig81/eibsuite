@@ -28,9 +28,9 @@ protected:
 // ============================================================
 
 TEST_F(CTimeTest, DefaultConstructor_CapturesCurrentTime) {
-    int before = static_cast<int>(time(0));
+    time_t before = time(0);
     CTime t;
-    int after = static_cast<int>(time(0));
+    time_t after = time(0);
     EXPECT_GE(t.GetTime(), before);
     EXPECT_LE(t.GetTime(), after);
 }
@@ -48,7 +48,7 @@ TEST_F(CTimeTest, CopyConstructor_CopiesValue) {
 
 TEST_F(CTimeTest, TmStructConstructor_WithNull_UsesCurrentTime) {
     CTime now_from_null((struct tm*)NULL);
-    int now = static_cast<int>(time(0));
+    time_t now = time(0);
     EXPECT_LE(std::abs(now_from_null.GetTime() - now), 2);
 }
 
@@ -127,13 +127,13 @@ TEST_F(CTimeTest, ComparisonOperators_LeGeWork) {
 
 TEST_F(CTimeTest, AssignmentOperator_CopiesValue) {
     CTime a(1234);
-    CTime b(0);
+    CTime b((time_t)0);
     b = a;
     EXPECT_EQ(1234, b.GetTime());
 }
 
 TEST_F(CTimeTest, IntAssignmentOperator_SetsValue) {
-    CTime a(0);
+    CTime a((time_t)0);
     a = 9999;
     EXPECT_EQ(9999, a.GetTime());
 }
@@ -297,11 +297,11 @@ TEST_F(CTimeTest, FormatExplicitArg_IgnoresDefault) {
 // ============================================================
 
 TEST_F(CTimeTest, SetNow_UpdatesToCurrent) {
-    CTime t(0);
+    CTime t((time_t)0);
     EXPECT_EQ(0, t.GetTime());
-    int before = static_cast<int>(time(0));
+    time_t before = time(0);
     t.SetNow();
-    int after = static_cast<int>(time(0));
+    time_t after = time(0);
     EXPECT_GE(t.GetTime(), before);
     EXPECT_LE(t.GetTime(), after);
 }
@@ -314,7 +314,7 @@ TEST_F(CTimeTest, SetTime_UpdatesValue) {
 
 TEST_F(CTimeTest, GetTimeZeroAndSetTimeZero_AreConsistent) {
     CTime value(123456);
-    int zero_time = 0;
+    time_t zero_time = 0;
     EXPECT_NO_THROW(zero_time = value.GetTimeZero());
     EXPECT_GT(zero_time, 0);
 
@@ -325,19 +325,19 @@ TEST_F(CTimeTest, GetTimeZeroAndSetTimeZero_AreConsistent) {
 
 TEST_F(CTimeTest, GetTimePtr_ReturnsPointerToInternalValue) {
     CTime t(5555);
-    const int* ptr = t.GetTimePtr();
+    const time_t* ptr = t.GetTimePtr();
     ASSERT_NE(nullptr, ptr);
     EXPECT_EQ(5555, *ptr);
 }
 
 // ============================================================
-// secTo
+// SecondsTo
 // ============================================================
 
 TEST_F(CTimeTest, SecTo_FutureTime_ReturnsPositiveSeconds) {
-    int now = static_cast<int>(time(0));
+    time_t now = time(0);
     CTime future(now + 100);
-    int sec = future.secTo();
+    time_t sec = future.SecondsTo();
     // Should be approximately 100 (within tolerance for test execution time)
     EXPECT_GE(sec, 98);
     EXPECT_LE(sec, 102);
@@ -345,7 +345,7 @@ TEST_F(CTimeTest, SecTo_FutureTime_ReturnsPositiveSeconds) {
 
 TEST_F(CTimeTest, SecTo_PastTime_ReturnsZero) {
     CTime past(1000);
-    EXPECT_EQ(0, past.secTo());
+    EXPECT_EQ(0, past.SecondsTo());
 }
 
 // ============================================================
@@ -384,4 +384,44 @@ TEST_F(CTimeTest, AddFormatToString_AppendsToExistingString) {
     // Should start with "Time: " and have the formatted time appended
     EXPECT_EQ(0, std::string(prefix.GetBuffer()).find("Time: "));
     EXPECT_GT(prefix.GetLength(), 6);
+}
+
+// ============================================================
+// Y2038: with time_t (64-bit), dates beyond 2038 work correctly
+// ============================================================
+
+TEST_F(CTimeTest, Y2038_Post2038DateIsPositive) {
+    // Year 2099 should be stored as a positive value with 64-bit time_t
+    CTime t2099("Thu Jan 01 00:00:00 2099", true);
+    EXPECT_GT(t2099.GetTime(), 0)
+        << "Year 2099 should be a positive time_t value; "
+        << "actual=" << t2099.GetTime();
+}
+
+TEST_F(CTimeTest, Y2038_Post2038DateComparesCorrectly) {
+    // Year 2099 should be greater than now
+    CTime t2099("Thu Jan 01 00:00:00 2099", true);
+    CTime now;
+    now.SetNow();
+    EXPECT_TRUE(t2099 > now)
+        << "Year 2099 should be in the future; t2099=" << t2099.GetTime()
+        << ", now=" << now.GetTime();
+}
+
+TEST_F(CTimeTest, Y2038_FormatRoundTrip) {
+    // Format a year-2050 date and parse it back; should round-trip correctly
+    CTime t2050(1, 6, 2050, 12, 0, 0);
+    CString formatted = t2050.Format(true);
+    CTime parsed(formatted.GetBuffer(), true);
+    EXPECT_LE(std::abs(t2050.GetTime() - parsed.GetTime()), 1)
+        << "Year 2050 round-trip failed; formatted='" << formatted.GetBuffer() << "'";
+}
+
+TEST_F(CTimeTest, Y2038_ArithmeticAcross2038Boundary) {
+    // Start just before the 2^31 boundary and add seconds past it
+    CTime before_boundary((time_t)2147483640); // ~7 seconds before 2^31
+    CTime after = before_boundary + (time_t)100; // 100 seconds past
+    EXPECT_EQ(after.GetTime(), (time_t)2147483740)
+        << "Arithmetic across 2^31 boundary should produce correct result";
+    EXPECT_TRUE(after > before_boundary);
 }

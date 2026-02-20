@@ -16,10 +16,10 @@ void CTime::Initialize()
 **/
 CTime::CTime()
 {
-	_time_val = static_cast<int>(time(0));
+	_time_val = time(0);
 }
 
-CTime::CTime(int time)
+CTime::CTime(time_t time)
 {
 	_time_val = time;
 }
@@ -37,7 +37,7 @@ CTime::CTime(const CTime& time)
 
 CTime::CTime(struct tm *pTime)
 {
-	_time_val = ((pTime!=NULL) ? static_cast<int>(mktime(pTime)): static_cast<int>(time(0)));
+	_time_val = ((pTime!=NULL) ? mktime(pTime) : time(0));
 }
 
 CTime::CTime(const int day, const int month, const int year,const int hour, const int minutes,const int sec)
@@ -54,7 +54,7 @@ CTime::CTime(const int day, const int month, const int year,const int hour, cons
 	intm.tm_year = (int)(year) - 1900;
 	intm.tm_isdst = -1; // day light saving time effect
 
-	_time_val = static_cast<int>(mktime(&intm));
+	_time_val = mktime(&intm);
 }
 
 
@@ -117,7 +117,7 @@ CTime::CTime(const char *time, bool local_time)
 		intm.tm_isdst = 0;
 	}
 
-	_time_val = static_cast<int>(mktime(&intm));
+	_time_val = mktime(&intm);
 
 
 	if (!local_time) {
@@ -137,9 +137,9 @@ CTime::CTime(const char *time, bool local_time)
 
 CTime::~CTime() {};
 /**
-@return int that corresponds to this CTime object.
+@return time_t that corresponds to this CTime object.
 **/
-int CTime::GetTime() const
+time_t CTime::GetTime() const
 {
 	return _time_val;
 }
@@ -148,11 +148,11 @@ int CTime::GetTime() const
 Calculate seconds to the given time.
 @return how many seconds is ('current time' - time_val)
 **/
-int CTime::secTo() const
+time_t CTime::SecondsTo() const
 {
-	int sec;
+	time_t sec;
 
-	sec = GetTime() - static_cast<int>(time(0));
+	sec = GetTime() - time(0);
 	sec = ((sec < 0) ? 0 : sec);
 
 	return sec;
@@ -179,7 +179,7 @@ void CTime::AddFormatToString(CString& result,bool get_local) const
 {
 	char strDest[25];
 	size_t maxsize = 25;
-	int tt = GetTime();
+	time_t tt = GetTime();
 	struct tm *tm_struct;
 	// Using thread safe functions
 	if (!get_local) {
@@ -223,7 +223,7 @@ void CTime::AddFormatToString(CString& result,bool get_local) const
 //Sets the time value to be 'now'
 void CTime::SetNow()
 {
-	_time_val = static_cast<int>(time(0));
+	_time_val = time(0);
 }
 
 void CTime::SetTimeZero()
@@ -232,7 +232,7 @@ void CTime::SetTimeZero()
 }
 
 
-int CTime::GetTimeZero() const
+time_t CTime::GetTimeZero() const
 {
 	CTime tmp(STRING_TIME_ZERO.GetBuffer());
 	return tmp.GetTime();
@@ -262,7 +262,7 @@ void CTime::AddTimeStrSegmentToString(CString& result, CString format, int size 
 	}
 	size_t maxsize = (unsigned int)(size);
 
-	int tt = GetTime();
+	time_t tt = GetTime();
 	struct tm *tm_struct;
 	// Using thread safe functions
 	if (!get_local) {
@@ -345,13 +345,13 @@ CTime& CTime::operator-=(const CTime& t2)
 	return *this;
 }
 
-CTime& CTime::operator-=(const int t2)
+CTime& CTime::operator-=(const time_t t2)
 {
 	this->_time_val -= t2;
 	return *this;
 }
 
-CTime& CTime::operator=(const int t2)
+CTime& CTime::operator=(const time_t t2)
 {
 	this->_time_val = t2;
 	return *this;
@@ -364,7 +364,7 @@ EIB_STD_EXPORT CTime operator-(const CTime& t1, const CTime& t2)
 	return res;
 }
 
-EIB_STD_EXPORT CTime operator-(const CTime& t1, const int t2)
+EIB_STD_EXPORT CTime operator-(const CTime& t1, const time_t t2)
 {
 
 	CTime res(t1.GetTime() - t2);
@@ -377,7 +377,7 @@ CTime& CTime::operator+=(const CTime& t2)
 	return *this;
 }
 
-CTime& CTime::operator+=(const int t2)
+CTime& CTime::operator+=(const time_t t2)
 {
 	this->_time_val += t2;
 	return *this;
@@ -391,7 +391,7 @@ EIB_STD_EXPORT CTime operator+(const CTime& t1, const CTime& t2)
 	return res;
 }
 
-EIB_STD_EXPORT CTime operator+(const CTime& t1, const int t2)
+EIB_STD_EXPORT CTime operator+(const CTime& t1, const time_t t2)
 {
 
 	CTime res(t1.GetTime() + t2);
@@ -401,7 +401,7 @@ EIB_STD_EXPORT CTime operator+(const CTime& t1, const int t2)
 bool CTime::SetLocalTime(const CTime &time_to_set)
 {
 #ifdef WIN32
-	int tmp_time = time_to_set.GetTime();
+	time_t tmp_time = time_to_set.GetTime();
 	struct tm *tmp_tm = CTime::EibTime(&tmp_time);
 	if (!tmp_tm)
 		return false;
@@ -418,7 +418,7 @@ bool CTime::SetLocalTime(const CTime &time_to_set)
 		return false;
 	return true;
 #else
-	struct timeval tv = {  (int)(time_to_set.GetTime()), 0 };
+	struct timeval tv = {  time_to_set.GetTime(), 0 };
 	if (settimeofday(&tv, NULL) < 0) {
 		perror("settimeofday");
 		return false;
@@ -434,14 +434,14 @@ bool CTime::SetLocalDate(const CTime &into_set)
 #ifdef WIN32
 
 	SYSTEMTIME systemTime;
-	int tmp_time = into_set.GetTime();
+	time_t tmp_time = into_set.GetTime();
 	struct tm *tmp_tm = EibTime(&tmp_time);
 	if (!tmp_tm)
 		return false;
 	systemTime.wDay = tmp_tm->tm_mday;
 	systemTime.wMonth = tmp_tm->tm_mon + 1;
 	systemTime.wYear = tmp_tm->tm_year + 1900;
-	int now_t = static_cast<int>(time(0));
+	time_t now_t = time(0);
 	tmp_tm = EibTime(&now_t);
 	if (!tmp_tm)
 		return false;
@@ -453,8 +453,8 @@ bool CTime::SetLocalDate(const CTime &into_set)
 		return false;
 	return true;
 #else
-	int tmp_time = into_set.GetTime();
-	int cur_time = time(NULL);
+	time_t tmp_time = into_set.GetTime();
+	time_t cur_time = time(NULL);
 	struct tm tmp_tm;
 	struct tm cur_tm;
 	EIBTtime_r(&tmp_time, &tmp_tm);
@@ -562,15 +562,13 @@ bool CTime::SetTimeZoneName(const CString& timezone)
 }
 #endif
 
-struct tm* CTime::EibTime(const int* timer)
+struct tm* CTime::EibTime(const time_t* timer)
 {
-	time_t l_timer; //temporary variable to be used as argument to the original time method;
 	struct tm* ret_val;
 
 	if(timer)
 	{
-		l_timer = (int)(*timer);
-		ret_val = localtime(&l_timer);
+		ret_val = localtime(timer);
 	}
 	else
 	{
@@ -580,15 +578,13 @@ struct tm* CTime::EibTime(const int* timer)
 	return ret_val;
 }
 
-struct tm* CTime::EibGMTime(const int* timer)
+struct tm* CTime::EibGMTime(const time_t* timer)
 {
-	time_t l_timer; //temporary variable to be used as argument to the original time method;
 	struct tm* ret_val;
 
 	if(timer)
 	{
-		l_timer = (int)(*timer);
-		ret_val = gmtime(&l_timer);
+		ret_val = gmtime(timer);
 	}
 	else
 	{
@@ -600,15 +596,13 @@ struct tm* CTime::EibGMTime(const int* timer)
 
 #ifndef WIN32
 
-struct tm* CTime::EIBTtime_r(const int* timer, struct tm* res)
+struct tm* CTime::EIBTtime_r(const time_t* timer, struct tm* res)
 {
-	time_t l_timer;
 	struct tm* ret_val;
 
 	if (timer)
 	{
-		l_timer = (int)(*timer);
-		ret_val = localtime_r(&l_timer, res);
+		ret_val = localtime_r(timer, res);
 	}
 	else
 	{
@@ -618,15 +612,13 @@ struct tm* CTime::EIBTtime_r(const int* timer, struct tm* res)
 	return ret_val;
 }
 
-struct tm* CTime::EibGMTime_r(const int* timer, struct tm* res)
+struct tm* CTime::EibGMTime_r(const time_t* timer, struct tm* res)
 {
-	time_t l_timer;
 	struct tm* ret_val;
 
 	if (timer)
 	{
-		l_timer = (int)(*timer);
-		ret_val = gmtime_r(&l_timer, res);
+		ret_val = gmtime_r(timer, res);
 	}
 	else
 	{

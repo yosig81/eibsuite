@@ -30,7 +30,7 @@ void CWebCollector::run()
 	while(!_stop)
 	{
 		
-		if(time_count.secTo() == 0){
+		if(time_count.SecondsTo() == 0){
 			CheckForScheduledCommand();
 			time_count.SetNow();
 			time_count += 60;
