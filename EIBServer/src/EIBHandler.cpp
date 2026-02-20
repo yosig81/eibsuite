@@ -121,8 +121,8 @@ void CEIBHandler::RunEIBWriter()
 				LOG_DEBUG("EIB Writer resumed.");
 			}
 
-			//release the lock untill the buffer will be filled up or 1 sec passed (to give change to the pause feature)
-			this->wait(1500);
+			//release the lock until the buffer will be filled up or timeout (to give chance to the pause feature)
+			this->wait(100);
 		END_TRY_START_CATCH_JTC(e)
 			LOG_ERROR("JTC Error: %s",e.getMessage());
 		END_TRY_START_CATCH(ex)

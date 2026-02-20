@@ -34,7 +34,6 @@ public:
 
         // 3. Start emulator handler threads
         StartEmulator();
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
         // 4. Create and init the server singleton
         CEIBServer::Create();
@@ -46,8 +45,25 @@ public:
 
         // 6. Start server threads
         CEIBServer::GetInstance().Start();
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+        // 7. Wait until the web server is actually accepting connections
+        WaitForWebServer(CEIBServer::GetInstance().GetConfig().GetWEBServerPort());
     }
+
+private:
+    void WaitForWebServer(int port, int max_attempts = 50) {
+        for (int i = 0; i < max_attempts; ++i) {
+            try {
+                TCPSocket probe("127.0.0.1", (unsigned short)port);
+                return; // connected -- server is ready
+            } catch (...) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+        }
+        FAIL() << "Web server did not start on port " << port;
+    }
+
+public:
 
     void TearDown() override {
         CEIBServer::GetInstance().Close();

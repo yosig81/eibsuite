@@ -174,7 +174,7 @@ bool CTunnelingConnection::ReceiveDataFrame(CCemi_L_Data_Frame &frame)
 	CString d_add;
 	int d_port;
 
-	len = _data_sock.RecvFrom(buffer,256,d_add,d_port,1000);
+	len = _data_sock.RecvFrom(buffer,256,d_add,d_port,100);
 	
 	if(len == 0){
 		return false;

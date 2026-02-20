@@ -468,6 +468,9 @@ UDPSocket::UDPSocket(const CString &localAddress, unsigned short localPort)
 }
 
 void UDPSocket::SetBroadcast() {
+  int optval = 1;
+  setsockopt(sockDesc, SOL_SOCKET, SO_REUSEADDR, (raw_type *)&optval, sizeof(optval));
+
   // If this fails, we'll hear about it when we try to send.  This will allow
   // system that cannot broadcast to continue if they don't plan to broadcast
   int broadcastPermission = 1;

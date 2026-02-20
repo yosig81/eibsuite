@@ -37,6 +37,7 @@ private:
 		unsigned char channelid;
 		unsigned char recv_sequence;
 		unsigned char send_sequence;
+		bool		  ack_received;
 		CString _remote_ctrl_addr;
 		int 	_remote_ctrl_port;
 		CString _remote_data_addr;

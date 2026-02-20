@@ -5,6 +5,19 @@
 
 using namespace IntegrationTest;
 
+// Poll an HTTP endpoint until the response body contains the expected string.
+static bool WaitForBodyContains(HttpTestClient& http, const CString& uri,
+                                const CString& session, const CString& needle,
+                                int max_ms = 2000) {
+    for (int elapsed = 0; elapsed < max_ms; elapsed += 20) {
+        HttpResponse r = http.Get(uri, session);
+        if (r.status_code == 200 && r.body.Find(needle) != string::npos)
+            return true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+    return false;
+}
+
 class BusMonitorTest : public ::testing::Test {
 protected:
     HttpTestClient http;
@@ -21,14 +34,8 @@ TEST_F(BusMonitorTest, UnsolicitedIndicationRecorded)
     unsigned char val[] = {0x01};
     EmulatorSendIndication("1/2/3", val, 1);
 
-    // Give time for the indication to be processed
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
-    HttpResponse resp = http.Get("/api/admin/busmon", admin_sid);
-    EXPECT_EQ(resp.status_code, 200);
-    // The bus monitor response should reference the address we sent to
-    EXPECT_NE(resp.body.Find("1/2/3"), string::npos)
-        << "Bus monitor should contain address 1/2/3. Body: " << resp.body.GetBuffer();
+    EXPECT_TRUE(WaitForBodyContains(http, "/api/admin/busmon", admin_sid, "1/2/3"))
+        << "Bus monitor should contain address 1/2/3";
 }
 
 TEST_F(BusMonitorTest, MultipleIndications)
@@ -37,37 +44,28 @@ TEST_F(BusMonitorTest, MultipleIndications)
     unsigned char val2[] = {0x02};
     unsigned char val3[] = {0x03};
 
-    // Space out indications to allow tunnel acks to complete between sends
+    // Delay between sends for tunnel ACK round-trip
     EmulatorSendIndication("0/0/1", val1, 1);
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     EmulatorSendIndication("0/0/2", val2, 1);
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     EmulatorSendIndication("1/2/3", val3, 1);
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
-    HttpResponse resp = http.Get("/api/admin/busmon", admin_sid);
-    EXPECT_EQ(resp.status_code, 200);
-    EXPECT_NE(resp.body.Find("0/0/1"), string::npos)
-        << "Missing 0/0/1. Body: " << resp.body.GetBuffer();
-    EXPECT_NE(resp.body.Find("0/0/2"), string::npos)
-        << "Missing 0/0/2. Body: " << resp.body.GetBuffer();
-    EXPECT_NE(resp.body.Find("1/2/3"), string::npos)
-        << "Missing 1/2/3. Body: " << resp.body.GetBuffer();
+    EXPECT_TRUE(WaitForBodyContains(http, "/api/admin/busmon", admin_sid, "0/0/1"))
+        << "Missing 0/0/1";
+    EXPECT_TRUE(WaitForBodyContains(http, "/api/admin/busmon", admin_sid, "0/0/2"))
+        << "Missing 0/0/2";
+    EXPECT_TRUE(WaitForBodyContains(http, "/api/admin/busmon", admin_sid, "1/2/3"))
+        << "Missing 1/2/3";
 }
 
 TEST_F(BusMonitorTest, IndicationValue)
 {
-    // Send a known value to 0/0/2
     unsigned char val[] = {0x00, 0x80};
     EmulatorSendIndication("0/0/2", val, 2);
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
-    HttpResponse resp = http.Get("/api/history", admin_sid);
-    EXPECT_EQ(resp.status_code, 200);
-    // The value 0x0080 should appear somewhere in the history
-    EXPECT_NE(resp.body.Find("0/0/2"), string::npos)
-        << "History should contain address 0/0/2. Body: " << resp.body.GetBuffer();
+    EXPECT_TRUE(WaitForBodyContains(http, "/api/history", admin_sid, "0/0/2"))
+        << "History should contain address 0/0/2";
 }
 
 TEST_F(BusMonitorTest, IndicationInHistory)
@@ -75,11 +73,6 @@ TEST_F(BusMonitorTest, IndicationInHistory)
     unsigned char val[] = {0x42};
     EmulatorSendIndication("1/2/3", val, 1);
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
-    HttpResponse resp = http.Get("/api/history", admin_sid);
-    EXPECT_EQ(resp.status_code, 200);
-    // The indication should appear in the global history
-    EXPECT_NE(resp.body.Find("1/2/3"), string::npos)
-        << "History should contain address 1/2/3. Body: " << resp.body.GetBuffer();
+    EXPECT_TRUE(WaitForBodyContains(http, "/api/history", admin_sid, "1/2/3"))
+        << "History should contain address 1/2/3";
 }

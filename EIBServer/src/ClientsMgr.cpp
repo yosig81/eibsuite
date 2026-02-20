@@ -69,7 +69,7 @@ void CClientsMgr::run()
 		while(!_stop)
 		{
 			
-			int len = _server_sock.RecvFrom(buffer,sizeof(buffer),source_address,source_port,500);
+			int len = _server_sock.RecvFrom(buffer,sizeof(buffer),source_address,source_port,100);
 			
 			if (len == 0 && _auto_discovery_enabled) {
 				HandleServiceDiscovery(buffer,1024);				

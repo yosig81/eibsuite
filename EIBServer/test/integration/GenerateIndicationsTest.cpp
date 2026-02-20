@@ -25,17 +25,22 @@ TEST_F(GenerateIndicationsTest, GeneratedIndicationsAppearInHistory)
     ASSERT_EQ(before.status_code, 200);
     int body_len_before = before.body.GetLength();
 
-    // Generate 5 random indications with small delay for tunnel acks
-    EmulatorGenerateRandomIndications(5, 200);
+    // Generate 5 random indications with no delay
+    EmulatorGenerateRandomIndications(5, 0);
 
-    // Wait for all indications to be processed
-    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-
-    // History should have grown
-    HttpResponse after = http.Get("/api/history", admin_sid);
-    ASSERT_EQ(after.status_code, 200);
-    EXPECT_GT(after.body.GetLength(), body_len_before)
-        << "History should contain new entries after generating indications";
+    // Poll until history grows.  The indications are processed asynchronously
+    // by the output handler (each needing an ACK round-trip), so allow enough
+    // time for all 5 to complete when running after other tests.
+    bool grew = false;
+    for (int elapsed = 0; elapsed < 5000; elapsed += 20) {
+        HttpResponse after = http.Get("/api/history", admin_sid);
+        if (after.status_code == 200 && after.body.GetLength() > body_len_before) {
+            grew = true;
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+    EXPECT_TRUE(grew) << "History should contain new entries after generating indications";
 }
 
 TEST_F(GenerateIndicationsTest, BurstModeDoesNotCrash)
@@ -44,10 +49,15 @@ TEST_F(GenerateIndicationsTest, BurstModeDoesNotCrash)
     // output handler queue absorbs the burst without crashes.
     EmulatorGenerateRandomIndications(20, 0);
 
-    // Wait for queue to drain
-    std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-
-    // Server should still be responsive
-    HttpResponse resp = http.Get("/api/history", admin_sid);
-    EXPECT_EQ(resp.status_code, 200);
+    // Poll until server responds (proves it didn't crash)
+    bool responsive = false;
+    for (int elapsed = 0; elapsed < 5000; elapsed += 20) {
+        HttpResponse resp = http.Get("/api/history", admin_sid);
+        if (resp.status_code == 200) {
+            responsive = true;
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+    EXPECT_TRUE(responsive) << "Server should still be responsive after burst";
 }

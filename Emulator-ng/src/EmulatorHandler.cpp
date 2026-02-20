@@ -44,6 +44,7 @@ void CEmulatorHandler::InitState(CEmulatorHandler::ConnectionState* s)
 	s->channelid = 0;
 	s->recv_sequence = 0;
 	s->send_sequence = 0;
+	s->ack_received = false;
 	s->_timeout.SetNow();
 	s->_timeout += HEARTBEAT_REQUEST_TIME_OUT;
 }
@@ -214,16 +215,17 @@ void CEmulatorHandler::CEmulatorInputHandler::run()
 {
 	unsigned char buffer[256];
 	CString src_ip;
-	int len = 0, src_port, timeout_interval = 1000;
+	int len = 0, src_port, timeout_interval = 100;
 
 	while (!_stop)
 	{
-		_emulator->CheckConnectionsCleanup();
-		
 		len = _sock.RecvFrom(buffer, sizeof(buffer), src_ip, src_port, timeout_interval);
 
 		if(len == 0){
-			//check if timeout expired
+			// No data -- use idle time for connection timeout cleanup.
+			// This must NOT run before RecvFrom, because Broadcast() holds
+			// the emulator lock while waiting for an ACK signal from us.
+			_emulator->CheckConnectionsCleanup();
 			continue;
 		}
 
@@ -284,6 +286,8 @@ void CEmulatorHandler::CEmulatorInputHandler::HandleTunnelAck(unsigned char* buf
 		if(s->send_sequence == ack.GetSequenceNumber()){
 			//increment the send sequence
 			s->send_sequence++;
+			s->ack_received = true;
+			s->state_monitor.notify();
 		}else{
 			LOG_ERROR("Error: Incorrect Sequence number in Tunnel Ack. Ignore Ack.");
 		}
@@ -632,6 +636,7 @@ bool CEmulatorHandler::CEmulatorInputHandler::SendTunnelToClient(const CCemi_L_D
 	START_TRY
 		JTCSynchronized sync(s->state_monitor);
 		if(s->is_connected){
+			s->ack_received = false;
 			unsigned char buffer[256];
 			CTunnelingRequest req(s->channelid, s->send_sequence, frame);
 			req.FillBuffer(buffer, sizeof(buffer));
@@ -641,20 +646,34 @@ bool CEmulatorHandler::CEmulatorInputHandler::SendTunnelToClient(const CCemi_L_D
 		}
 
 		if(wait4ack){
-			unsigned char buffer[256];
-			int len = 0, src_port, timeout_interval = 1000;
-			CString src_ip;
-			len = _sock.RecvFrom(buffer, sizeof(buffer), src_ip, src_port, timeout_interval);
-			if(len == 0){
-				return false;
+			if(JTCThread::currentThread() == this){
+				// Called from the input handler thread (e.g. HandleTunnelRequest).
+				// We own the socket reader, so read the ACK directly.
+				unsigned char ack_buf[256];
+				int ack_len = 0, ack_port;
+				CString ack_ip;
+				ack_len = _sock.RecvFrom(ack_buf, sizeof(ack_buf), ack_ip, ack_port, 1000);
+				if(ack_len == 0){
+					return false;
+				}
+				EIBNETIP_HEADER* h = ((EIBNETIP_HEADER*)ack_buf);
+				h->servicetype = htons(h->servicetype);
+				h->totalsize = htons(h->totalsize);
+				if(h->servicetype != TUNNELLING_ACK){
+					return false;
+				}
+				HandleTunnelAck(ack_buf, sizeof(ack_buf));
+			}else{
+				// Called from another thread (output handler).
+				// Let the input handler read the ACK and signal us
+				// via HandleTunnelAck -> state_monitor.notify().
+				// wait() releases state_monitor so the input handler
+				// can acquire it in HandleTunnelAck.
+				s->state_monitor.wait(1000);
+				if(!s->ack_received){
+					return false;
+				}
 			}
-			EIBNETIP_HEADER* header = ((EIBNETIP_HEADER*)buffer);
-			header->servicetype = htons(header->servicetype);
-			header->totalsize = htons(header->totalsize);
-			if(header->servicetype != TUNNELLING_ACK){
-				return false;
-			}
-			HandleTunnelAck(buffer, sizeof(buffer));
 		}
 
 	END_TRY_START_CATCH(e)

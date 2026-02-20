@@ -68,7 +68,7 @@ void CDispatcher::run()
 
 	while (!_stop)
 	{
-		TCPSocket* sock = _server_sock->Accept(2000);
+		TCPSocket* sock = _server_sock->Accept(100);
 		if (sock != NULL)
 		{
 			int id = counter++ % _num_handlers;

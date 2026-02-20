@@ -152,10 +152,14 @@ lsf_thread_adapter(void* arg)
     //
 #ifdef HAVE_STD_SET_X
     std::set_terminate(jtc_abort);
+#if __cplusplus < 201703L
     std::set_unexpected(jtc_abort);
+#endif
 #else
     set_terminate(::abort);
+#if __cplusplus < 201703L
     set_unexpected(::abort);
+#endif
 #endif
 
 #if defined(__sgi) && !defined(__GNUC__)

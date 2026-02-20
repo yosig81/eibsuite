@@ -62,3 +62,6 @@ EIBServer/libjtc.so
 EIBServer/libEIBStdLib.so
 Emulator-ng/libjtc.so
 Emulator-ng/libEIBStdLib.so
+
+# CMake build output
+build/
