@@ -109,7 +109,7 @@ void CDigest::ConvertToString(unsigned char* buffer, CString& hash)
 	int p = 0;
 	for(int i=0; i<16; i++)
 	{
-		sprintf(&asciihash[p],"%02x",buffer[i]);
+		snprintf(&asciihash[p],3,"%02x",buffer[i]);
 		p += 2;
 	}
 	asciihash[32] = '\0';

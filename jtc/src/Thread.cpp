@@ -1322,7 +1322,7 @@ JTCInitialize::JTCInitialize(int& argc, char** argv)
 	else if (strncmp(argv[i], "-JTC", strlen("-JTC")) == 0)
 	{
 	    char buf[1024];
-	    sprintf(buf, "unknown option: %s", argv[i]);
+	    snprintf(buf, sizeof(buf), "unknown option: %s", argv[i]);
 
 	    throw JTCInitializeError(buf);
 	}

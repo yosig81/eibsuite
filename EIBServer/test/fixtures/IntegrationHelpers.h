@@ -137,30 +137,30 @@ private:
             }
 
             // Parse status line
-            int sp1 = full_response.Find(" ");
-            if (sp1 >= 0) {
-                int sp2 = full_response.Find(" ", sp1 + 1);
-                if (sp2 > sp1) {
+            size_t sp1 = full_response.Find(" ");
+            if (sp1 != string::npos) {
+                size_t sp2 = full_response.Find(" ", sp1 + 1);
+                if (sp2 != string::npos && sp2 > sp1) {
                     CString code_str = full_response.SubString(sp1 + 1, sp2 - sp1 - 1);
                     resp.status_code = code_str.ToInt();
                 }
             }
 
             // Extract Set-Cookie header
-            int cookie_pos = full_response.Find("Set-Cookie:");
-            if (cookie_pos >= 0) {
-                int val_start = cookie_pos + 11;
+            size_t cookie_pos = full_response.Find("Set-Cookie:");
+            if (cookie_pos != string::npos) {
+                size_t val_start = cookie_pos + 11;
                 // skip whitespace
-                while (val_start < full_response.GetLength() && full_response[val_start] == ' ')
+                while (val_start < (size_t)full_response.GetLength() && full_response[val_start] == ' ')
                     val_start++;
-                int val_end = full_response.Find("\r\n", val_start);
-                if (val_end < 0) val_end = full_response.GetLength();
+                size_t val_end = full_response.Find("\r\n", val_start);
+                if (val_end == string::npos) val_end = full_response.GetLength();
                 resp.set_cookie = full_response.SubString(val_start, val_end - val_start);
             }
 
             // Extract body (after \r\n\r\n)
-            int body_start = full_response.Find("\r\n\r\n");
-            if (body_start >= 0) {
+            size_t body_start = full_response.Find("\r\n\r\n");
+            if (body_start != string::npos) {
                 body_start += 4;
                 resp.body = full_response.SubString(body_start, full_response.GetLength() - body_start);
             }
@@ -173,11 +173,11 @@ private:
 
     CString ExtractSessionId(const CString& set_cookie) {
         // Format: WEBSESSIONID=<hex>;Path=/
-        int eq = set_cookie.Find("WEBSESSIONID=");
-        if (eq < 0) return "";
-        int start = eq + 13; // length of "WEBSESSIONID="
-        int end = set_cookie.Find(";", start);
-        if (end < 0) end = set_cookie.GetLength();
+        size_t eq = set_cookie.Find("WEBSESSIONID=");
+        if (eq == string::npos) return "";
+        size_t start = eq + 13; // length of "WEBSESSIONID="
+        size_t end = set_cookie.Find(";", start);
+        if (end == string::npos) end = set_cookie.GetLength();
         return set_cookie.SubString(start, end - start);
     }
 };

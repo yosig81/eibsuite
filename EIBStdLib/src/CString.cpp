@@ -293,9 +293,9 @@ int CString::FindFirstOf(const CString& c) const
 	return ret;
 }
 
-int CString::Find(char c, int pos) const
+size_t CString::Find(char c, size_t pos) const
 {
-	return (int)_str.find(c,pos);
+	return _str.find(c,pos);
 }
 
 CString CString::SubString(int start,int length)  const
@@ -305,9 +305,9 @@ CString CString::SubString(int start,int length)  const
 	return ret;
 }
 
-int CString::Find(const CString& value, int pos) const
+size_t CString::Find(const CString& value, size_t pos) const
 {
-	return (int)_str.find(value._str.c_str(),pos);
+	return _str.find(value._str.c_str(),pos);
 }
 
 int CString::RFind(const CString& value, int pos) const

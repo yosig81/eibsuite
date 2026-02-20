@@ -48,6 +48,6 @@ TEST_F(ServerLifecycleTest, ServeIndexHtml)
 {
     HttpResponse resp = http.Get("/");
     EXPECT_EQ(resp.status_code, 200);
-    EXPECT_GE(resp.body.Find("EIBServer Test"), 0)
+    EXPECT_NE(resp.body.Find("EIBServer Test"), string::npos)
         << "Body: " << resp.body.GetBuffer();
 }

@@ -9,7 +9,7 @@ CEIBException::CEIBException(EIBErrorClass error,const char* msg,...) : _error_c
 	char buffer[512];
 	va_list arglist;
 	va_start(arglist,msg);
-	vsprintf(buffer,msg,arglist);
+	vsnprintf(buffer,sizeof(buffer),msg,arglist);
 	va_end(arglist);
 	_what = buffer;
 }

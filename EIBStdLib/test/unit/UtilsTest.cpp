@@ -32,8 +32,8 @@ TEST_F(UtilsTest, SaveReadAndGetSize_RoundTrip) {
 
     CString loaded;
     CUtils::ReadFile(path, loaded);
-    EXPECT_NE(-1, loaded.Find("alpha"));
-    EXPECT_NE(-1, loaded.Find("beta"));
+    EXPECT_NE(string::npos, loaded.Find("alpha"));
+    EXPECT_NE(string::npos, loaded.Find("beta"));
 
     unlink(path.GetBuffer());
 }
@@ -88,8 +88,8 @@ TEST_F(UtilsTest, SaveReadAndGetSize_PathWithSpaces) {
 
     CString loaded;
     CUtils::ReadFile(spaced_file, loaded);
-    EXPECT_NE(-1, loaded.Find("line one"));
-    EXPECT_NE(-1, loaded.Find("line two"));
+    EXPECT_NE(string::npos, loaded.Find("line one"));
+    EXPECT_NE(string::npos, loaded.Find("line two"));
 
     unlink(spaced_file.GetBuffer());
     rmdir(parent.GetBuffer());

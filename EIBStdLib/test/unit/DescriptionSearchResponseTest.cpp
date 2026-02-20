@@ -92,12 +92,12 @@ TEST_F(DescriptionSearchResponseTest, DescriptionResponse_StringConvertersCoverK
     EXPECT_STREQ("twisted pair 1 (9600 bit/s)", medium.GetBuffer());
 
     CDescriptionResponse::KNXMediumToString(static_cast<KNXMedium>(0x77), medium);
-    EXPECT_EQ(0, medium.Find("Unknown"));
+    EXPECT_EQ((size_t)0, medium.Find("Unknown"));
 
     CString services;
     CDescriptionResponse::SupportedServicesToString(
         SERVICE_CORE | SERVICE_ROUTING | SERVICE_OBJSRV, services);
-    EXPECT_NE(CString(services).Find("Core"), -1);
-    EXPECT_NE(CString(services).Find("Routing"), -1);
-    EXPECT_NE(CString(services).Find("Object-Server"), -1);
+    EXPECT_NE(CString(services).Find("Core"), string::npos);
+    EXPECT_NE(CString(services).Find("Routing"), string::npos);
+    EXPECT_NE(CString(services).Find("Object-Server"), string::npos);
 }

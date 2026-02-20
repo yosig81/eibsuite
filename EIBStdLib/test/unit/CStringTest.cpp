@@ -192,22 +192,22 @@ TEST_F(CStringTest, Clear_EmptiesString) {
 // Search Operation Tests
 TEST_F(CStringTest, Find_FindsSubstring) {
     CString str("Hello World");
-    EXPECT_EQ(0, str.Find("Hello"));
-    EXPECT_EQ(6, str.Find("World"));
-    EXPECT_EQ(-1, str.Find("NotFound"));
+    EXPECT_EQ((size_t)0, str.Find("Hello"));
+    EXPECT_EQ((size_t)6, str.Find("World"));
+    EXPECT_EQ(string::npos, str.Find("NotFound"));
 }
 
 TEST_F(CStringTest, Find_WithStartPosition_FindsFromPosition) {
     CString str("Hello World Hello");
-    EXPECT_EQ(0, str.Find("Hello", 0));
-    EXPECT_EQ(12, str.Find("Hello", 1));
+    EXPECT_EQ((size_t)0, str.Find("Hello", 0));
+    EXPECT_EQ((size_t)12, str.Find("Hello", 1));
 }
 
 TEST_F(CStringTest, Find_FindsCharacter) {
     CString str("Hello");
-    EXPECT_EQ(0, str.Find('H', 0));
-    EXPECT_EQ(2, str.Find('l', 0));
-    EXPECT_EQ(-1, str.Find('z', 0));
+    EXPECT_EQ((size_t)0, str.Find('H', 0));
+    EXPECT_EQ((size_t)2, str.Find('l', 0));
+    EXPECT_EQ(string::npos, str.Find('z', 0));
 }
 
 // FindFirstOf finds first character match, not substring
@@ -286,7 +286,7 @@ TEST_F(CStringTest, EmptyString_HandledCorrectly) {
     str.ToUpper();
     EXPECT_TRUE(str.IsEmpty());
 
-    EXPECT_EQ(-1, str.Find("test"));
+    EXPECT_EQ(string::npos, str.Find("test"));
 }
 
 TEST_F(CStringTest, MultipleOperations_WorkCorrectly) {
@@ -309,12 +309,12 @@ TEST_F(CStringTest, HashCode_ReturnsValue) {
 // Hex Format Tests
 TEST_F(CStringTest, ToHexFormat_ConvertsCharToHex) {
     CString hex = CString::ToHexFormat((unsigned char)255);
-    EXPECT_TRUE(hex.Find("ff") >= 0 || hex.Find("FF") >= 0);
+    EXPECT_TRUE(hex.Find("ff") != string::npos || hex.Find("FF") != string::npos);
 }
 
 TEST_F(CStringTest, ToHexFormat_ConvertsIntToHex) {
     CString hex = CString::ToHexFormat(255);
-    EXPECT_TRUE(hex.Find("ff") >= 0 || hex.Find("FF") >= 0);
+    EXPECT_TRUE(hex.Find("ff") != string::npos || hex.Find("FF") != string::npos);
 }
 
 // GetBuffer Tests

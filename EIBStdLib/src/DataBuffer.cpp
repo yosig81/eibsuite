@@ -11,7 +11,7 @@ _data_ptr(NULL)
 
 CDataBuffer::~CDataBuffer()
 {
-	if(_destroy && _data != NULL)
+	if(_destroy)
 	{
 		delete _data_ptr;
 		_data_ptr = NULL;

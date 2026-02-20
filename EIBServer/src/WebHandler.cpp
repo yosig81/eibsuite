@@ -403,8 +403,8 @@ bool CWebHandler::ApiAuthenticate(CHttpRequest& request, CUser& user)
 		CHttpHeader auth;
 		if (request.GetHeader(AUTHORIZATION_HEADER, auth)) {
 			CDigest digest(ALGORITHM_BASE64);
-			int index = auth.GetValue().Find("Basic ");
-			if (index >= 0) {
+			size_t index = auth.GetValue().Find("Basic ");
+			if (index != string::npos) {
 				CString cipher = auth.GetValue().SubString(index + 6, auth.GetValue().GetLength() - index - 6);
 				CString clear;
 				if (digest.Decode(cipher, clear)) {
@@ -690,7 +690,7 @@ bool CWebHandler::HandleStaticFile(const CString& path, CHttpReply& reply)
 	CString file_path = www_root + path;
 
 	// Security: prevent path traversal
-	if (file_path.Find("..") >= 0) {
+	if (file_path.Find("..") != string::npos) {
 		return false;
 	}
 
@@ -758,12 +758,12 @@ CString CWebHandler::GetJsonField(const CString& json, const CString& field)
 	search += field;
 	search += "\":\"";
 
-	int pos = json.Find(search);
-	if (pos < 0) return EMPTY_STRING;
+	size_t pos = json.Find(search);
+	if (pos == string::npos) return EMPTY_STRING;
 
 	pos += search.GetLength();
-	int end = json.Find("\"", pos);
-	if (end < 0) return EMPTY_STRING;
+	size_t end = json.Find("\"", pos);
+	if (end == string::npos) return EMPTY_STRING;
 
 	return json.SubString(pos, end - pos);
 }

@@ -40,7 +40,7 @@ void CEibAddress::Set(unsigned int address, bool is_group)
 
 CEibAddress::CEibAddress(const CString& address) : _group_type(GROUP_3_LEVEL_FORMAT)
 {
-	if(address.Find('/') != -1){
+	if(address.Find('/') != string::npos){
 		_is_logical = true;
 		StringTokenizer tmp =  StringTokenizer(address,"/");
 		if(tmp.CountTokens() == 3){
@@ -61,7 +61,7 @@ CEibAddress::CEibAddress(const CString& address) : _group_type(GROUP_3_LEVEL_FOR
 			throw CEIBException(GeneralError,"EIB Address error. Wrong group address syntax");
 		}
 	}
-	else if(address.Find('.') != -1){
+	else if(address.Find('.') != string::npos){
 		_is_logical = false;
 		StringTokenizer tmp =  StringTokenizer(address,".");
 		if(tmp.CountTokens() == 3){

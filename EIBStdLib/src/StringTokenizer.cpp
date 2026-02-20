@@ -11,11 +11,11 @@ StringTokenizer::StringTokenizer(const CString& str, const CString& delim)
   /*
      Remove sequential delimiter
   */
-   int curr_pos = 0;
+   size_t curr_pos = 0;
 
    while(true)
    {
-      if ((curr_pos = _token_str.Find(delim,curr_pos)) != static_cast<int>(string::npos))
+      if ((curr_pos = _token_str.Find(delim,curr_pos)) != string::npos)
       {
          curr_pos += _delim.GetLength();
 
@@ -39,10 +39,10 @@ StringTokenizer::StringTokenizer(const CString& str, const CString& delim)
    /*
      Trim ending delimiter
    */
-   curr_pos = 0;
-   if ((curr_pos = _token_str.RFind(_delim)) != static_cast<int>(string::npos))
+   size_t rpos = _token_str.RFind(_delim);
+   if (rpos != static_cast<int>(string::npos))
    {
-      if (curr_pos != (_token_str.GetLength() - _delim.GetLength())) return;
+      if (rpos != (_token_str.GetLength() - _delim.GetLength())) return;
 	  _token_str.Erase(_token_str.GetLength() - _delim.GetLength(),_delim.GetLength());
    }
 
@@ -55,19 +55,19 @@ int StringTokenizer::CountTokens()
       return 0;
 
    int num_tokens = 1; // At least one token if string is non-empty
-   int curr_pos = 0;
+   size_t curr_pos = 0;
 
    while(true)
    {
-      int found_pos = _token_str.Find(_delim, curr_pos);
-      if (found_pos == -1) // Not found
+      size_t found_pos = _token_str.Find(_delim, curr_pos);
+      if (found_pos == string::npos)
          break;
 
       num_tokens++;
       curr_pos = found_pos + _delim.GetLength();
 
       // Prevent infinite loop if we're at or past the end
-      if (curr_pos >= (int)_token_str.GetLength())
+      if (curr_pos >= (size_t)_token_str.GetLength())
          break;
    }
 
@@ -88,9 +88,9 @@ CString StringTokenizer::NextToken()
      return "";
 
    CString  tmp_str = "";
-   int pos = _token_str.Find(_delim,0); // Changed to int to properly handle -1
+   size_t pos = _token_str.Find(_delim,0);
 
-   if (pos != -1 && pos != static_cast<int>(string::npos))
+   if (pos != string::npos)
    {
       tmp_str   = _token_str.SubString(0,pos);
       int newStart = pos + _delim.GetLength();
@@ -114,7 +114,7 @@ int StringTokenizer::NextIntToken()
 
 int64 StringTokenizer::NextInt64Token()
 {
-	
+
 	return NextToken().ToInt64();
 }
 
@@ -130,9 +130,9 @@ CString StringTokenizer::NextToken(const CString& delimiter)
      return "";
 
    CString  tmp_str = "";
-   int pos = _token_str.Find(delimiter,0); // Changed to int to properly handle -1
+   size_t pos = _token_str.Find(delimiter,0);
 
-   if (pos != -1 && pos != static_cast<int>(string::npos))
+   if (pos != string::npos)
    {
       tmp_str   = _token_str.SubString(0,pos);
       int newStart = pos + delimiter.GetLength();
@@ -158,7 +158,7 @@ CString StringTokenizer::RemainingString()
 CString StringTokenizer::FilterNextToken(const CString& filterStr)
 {
    CString  tmp_str = NextToken();
-   unsigned int currentPos = 0;
+   size_t currentPos = 0;
 
    while((currentPos = tmp_str.Find(filterStr,currentPos)) != string::npos)
    {

@@ -27,7 +27,7 @@ TEST_F(WebApiAdminTest, GetInterfaceStatus)
     HttpResponse resp = http.Get("/api/admin/interface", admin_sid);
     EXPECT_EQ(resp.status_code, 200);
     // Should contain mode information
-    EXPECT_GE(resp.body.Find("MODE"), 0)
+    EXPECT_NE(resp.body.Find("MODE"), string::npos)
         << "Body: " << resp.body.GetBuffer();
 }
 

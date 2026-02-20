@@ -52,7 +52,7 @@ bool CConsoleClient::Login(const CString& host, int port, const CString& user, c
 		CString new_session;
 		CString body = ParseResponseBody(buf, len, new_session);
 
-		if (body.Find(CString(EIB_CLIENT_AUTHENTICATE_SUCCESS)) >= 0) {
+		if (body.Find(CString(EIB_CLIENT_AUTHENTICATE_SUCCESS)) != string::npos) {
 			if (new_session.GetLength() > 0) {
 				_session_id = new_session;
 			}

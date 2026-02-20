@@ -15,10 +15,10 @@ TEST_F(WebApiSessionTest, LoginValidCredentials)
     HttpResponse resp = http.Post("/api/login", body);
     EXPECT_EQ(resp.status_code, 200);
     // Should set a session cookie
-    EXPECT_GE(resp.set_cookie.Find("WEBSESSIONID="), 0)
+    EXPECT_NE(resp.set_cookie.Find("WEBSESSIONID="), string::npos)
         << "Set-Cookie: " << resp.set_cookie.GetBuffer();
     // Body should contain "ok"
-    EXPECT_GE(resp.body.Find("\"status\":\"ok\""), 0)
+    EXPECT_NE(resp.body.Find("\"status\":\"ok\""), string::npos)
         << "Body: " << resp.body.GetBuffer();
 }
 
@@ -51,7 +51,7 @@ TEST_F(WebApiSessionTest, SessionCheckAfterLogin)
 
     HttpResponse resp = http.Get("/api/session", sid);
     EXPECT_EQ(resp.status_code, 200);
-    EXPECT_GE(resp.body.Find("\"authenticated\":true"), 0)
+    EXPECT_NE(resp.body.Find("\"authenticated\":true"), string::npos)
         << "Body: " << resp.body.GetBuffer();
 }
 
@@ -59,7 +59,7 @@ TEST_F(WebApiSessionTest, SessionCheckWithoutLogin)
 {
     HttpResponse resp = http.Get("/api/session");
     EXPECT_EQ(resp.status_code, 200);
-    EXPECT_GE(resp.body.Find("\"authenticated\":false"), 0)
+    EXPECT_NE(resp.body.Find("\"authenticated\":false"), string::npos)
         << "Body: " << resp.body.GetBuffer();
 }
 
@@ -75,6 +75,6 @@ TEST_F(WebApiSessionTest, LogoutClearsSession)
     // Session should now be invalid
     HttpResponse check_resp = http.Get("/api/session", sid);
     EXPECT_EQ(check_resp.status_code, 200);
-    EXPECT_GE(check_resp.body.Find("\"authenticated\":false"), 0)
+    EXPECT_NE(check_resp.body.Find("\"authenticated\":false"), string::npos)
         << "Body: " << check_resp.body.GetBuffer();
 }

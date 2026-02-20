@@ -295,20 +295,20 @@ public:
 	int FindFirstOf(const CString& c) const;
 	/*!
 	\brief Method to search for a specific string within the currect string
-	\fn int Find(const CString& value, int pos = 0) const
+	\fn size_t Find(const CString& value, size_t pos = 0) const
 	\param value - the string to search for
 	\param pos - the index within the current string to start the search from.
-	\return int - the position of the searched string in the string. -1 if not found at all.
+	\return size_t - the position of the searched string in the string. std::string::npos if not found.
 	*/
-	int Find(const CString& value, int pos = 0) const;
+	size_t Find(const CString& value, size_t pos = 0) const;
 	/*!
-	\brief Method to search for a specific string within the currect string
-	\fn int Find(const CString& value, int pos = 0) const
-	\param value - the string to search for
+	\brief Method to search for a specific character within the currect string
+	\fn size_t Find(char c, size_t pos = 0) const
+	\param c - the character to search for
 	\param pos - the index within the current string to start the search from.
-	\return int - the position of the searched string in the string. -1 if not found at all.
+	\return size_t - the position of the searched character in the string. std::string::npos if not found.
 	*/
-	int Find(char c, int pos = 0) const;
+	size_t Find(char c, size_t pos = 0) const;
 	/*!
 	\brief Method to search for a specific string within the currect string. start the search from end to start (reverse)
 	\fn int Find(const CString& value, int pos = 0) const

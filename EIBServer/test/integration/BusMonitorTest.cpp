@@ -27,7 +27,7 @@ TEST_F(BusMonitorTest, UnsolicitedIndicationRecorded)
     HttpResponse resp = http.Get("/api/admin/busmon", admin_sid);
     EXPECT_EQ(resp.status_code, 200);
     // The bus monitor response should reference the address we sent to
-    EXPECT_GE(resp.body.Find("1/2/3"), 0)
+    EXPECT_NE(resp.body.Find("1/2/3"), string::npos)
         << "Bus monitor should contain address 1/2/3. Body: " << resp.body.GetBuffer();
 }
 
@@ -47,11 +47,11 @@ TEST_F(BusMonitorTest, MultipleIndications)
 
     HttpResponse resp = http.Get("/api/admin/busmon", admin_sid);
     EXPECT_EQ(resp.status_code, 200);
-    EXPECT_GE(resp.body.Find("0/0/1"), 0)
+    EXPECT_NE(resp.body.Find("0/0/1"), string::npos)
         << "Missing 0/0/1. Body: " << resp.body.GetBuffer();
-    EXPECT_GE(resp.body.Find("0/0/2"), 0)
+    EXPECT_NE(resp.body.Find("0/0/2"), string::npos)
         << "Missing 0/0/2. Body: " << resp.body.GetBuffer();
-    EXPECT_GE(resp.body.Find("1/2/3"), 0)
+    EXPECT_NE(resp.body.Find("1/2/3"), string::npos)
         << "Missing 1/2/3. Body: " << resp.body.GetBuffer();
 }
 
@@ -66,7 +66,7 @@ TEST_F(BusMonitorTest, IndicationValue)
     HttpResponse resp = http.Get("/api/history", admin_sid);
     EXPECT_EQ(resp.status_code, 200);
     // The value 0x0080 should appear somewhere in the history
-    EXPECT_GE(resp.body.Find("0/0/2"), 0)
+    EXPECT_NE(resp.body.Find("0/0/2"), string::npos)
         << "History should contain address 0/0/2. Body: " << resp.body.GetBuffer();
 }
 
@@ -80,6 +80,6 @@ TEST_F(BusMonitorTest, IndicationInHistory)
     HttpResponse resp = http.Get("/api/history", admin_sid);
     EXPECT_EQ(resp.status_code, 200);
     // The indication should appear in the global history
-    EXPECT_GE(resp.body.Find("1/2/3"), 0)
+    EXPECT_NE(resp.body.Find("1/2/3"), string::npos)
         << "History should contain address 1/2/3. Body: " << resp.body.GetBuffer();
 }

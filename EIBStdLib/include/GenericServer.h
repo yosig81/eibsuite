@@ -88,7 +88,6 @@ public:
 	friend class CGenericServer;
 private:
 	int _server_port;
-	unsigned char _network_id;
 	int _heartbeat_interval;
 	CString _server_address;
 	UDPSocket _sock;

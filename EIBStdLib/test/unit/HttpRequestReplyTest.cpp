@@ -38,9 +38,9 @@ TEST_F(HttpRequestReplyTest, HttpRequest_FinalizeBuildsRequestText) {
     request.Finalize(raw);
     CString text = BufferToString(raw);
 
-    EXPECT_NE(-1, text.Find("GET /health HTTP/1.0\r\n"));
-    EXPECT_NE(-1, text.Find("Host: example.com\r\n"));
-    EXPECT_NE(-1, text.Find("Content-Length: 0\r\n"));
+    EXPECT_NE(string::npos, text.Find("GET /health HTTP/1.0\r\n"));
+    EXPECT_NE(string::npos, text.Find("Host: example.com\r\n"));
+    EXPECT_NE(string::npos, text.Find("Content-Length: 0\r\n"));
 }
 
 TEST_F(HttpRequestReplyTest, HttpReply_FinalizeIncludesStatusHeadersAndBody) {
@@ -54,10 +54,10 @@ TEST_F(HttpRequestReplyTest, HttpReply_FinalizeIncludesStatusHeadersAndBody) {
     reply.Finalize(raw);
     CString text = BufferToString(raw);
 
-    EXPECT_NE(-1, text.Find("HTTP/1.0 200 OK\r\n"));
-    EXPECT_NE(-1, text.Find("Content-Type: text/plain\r\n"));
-    EXPECT_NE(-1, text.Find("Content-Length: 5\r\n"));
-    EXPECT_NE(-1, text.Find("hello"));
+    EXPECT_NE(string::npos, text.Find("HTTP/1.0 200 OK\r\n"));
+    EXPECT_NE(string::npos, text.Find("Content-Type: text/plain\r\n"));
+    EXPECT_NE(string::npos, text.Find("Content-Length: 5\r\n"));
+    EXPECT_NE(string::npos, text.Find("hello"));
 }
 
 TEST_F(HttpRequestReplyTest, HttpReply_RedirectSetsLocationAndStatusFound) {
@@ -70,6 +70,6 @@ TEST_F(HttpRequestReplyTest, HttpReply_RedirectSetsLocationAndStatusFound) {
     reply.Finalize(raw);
     CString text = BufferToString(raw);
 
-    EXPECT_NE(-1, text.Find("HTTP/1.0 302 Found\r\n"));
-    EXPECT_NE(-1, text.Find("Location: /login\r\n"));
+    EXPECT_NE(string::npos, text.Find("HTTP/1.0 302 Found\r\n"));
+    EXPECT_NE(string::npos, text.Find("Location: /login\r\n"));
 }

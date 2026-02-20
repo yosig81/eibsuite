@@ -39,7 +39,7 @@ TEST_F(WebApiDataTest, GetHistory)
     HttpResponse resp = http.Get("/api/history", admin_sid);
     EXPECT_EQ(resp.status_code, 200);
     // Should return a JSON object with "records" array
-    EXPECT_GE(resp.body.Find("\"records\""), 0)
+    EXPECT_NE(resp.body.Find("\"records\""), string::npos)
         << "Body: " << resp.body.GetBuffer();
 }
 
