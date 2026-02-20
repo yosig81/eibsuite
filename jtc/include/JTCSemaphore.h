@@ -15,7 +15,7 @@
 #include <Syscall.h>
 
 #if defined(HAVE_POSIX_THREADS)
-#    include <semaphore.h>
+#    include <pthread.h>
 #endif
 #include <errno.h>
 
@@ -34,17 +34,12 @@ public:
     wait();
 
     //
-    // Can not use a timed wait on a semaphore in HP-UX, AIX, or Solaris
-    //
-#if !defined(__hpux) && !defined(_AIX) && !defined(__sun)
-    //
     // Wait for the semaphore to be signaled for timeout msec. A
     // negative number means wait indefinitely. Return true if wait
     // terminated successfully (that is no timeout).
     //
     bool
     wait(long timeout);
-#endif
 
     //
     // Increment the semaphore count times.
@@ -54,8 +49,14 @@ public:
 
 private:
 
+    // Non-copyable
+    JTCSemaphore(const JTCSemaphore&);
+    JTCSemaphore& operator=(const JTCSemaphore&);
+
 #if defined(HAVE_POSIX_THREADS)
-	sem_t m_sem; // The semaphore object
+    pthread_mutex_t m_mutex;
+    pthread_cond_t  m_cond;
+    long            m_count;
 #endif
 #if defined(HAVE_WIN32_THREADS)
     HANDLE m_sem; // The semaphore handle

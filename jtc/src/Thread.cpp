@@ -1145,6 +1145,15 @@ JTCThread::exit_hook()
     my_group -> remove(this);
 
     //
+    // Check whether this thread is the one currently running, before
+    // the reference count is lowered (which may delete this object).
+    // When destroy() is called on an unstarted thread, exit_hook()
+    // runs on the calling thread -- clearing TSS would corrupt the
+    // caller's JTCThread identity.
+    //
+    bool clear_tss = (JTCTSS::get(sm_tss_key) == static_cast<void*>(this));
+
+    //
     // Lower the reference count.
     //
 #ifdef WIN32
@@ -1169,7 +1178,8 @@ JTCThread::exit_hook()
     // lowered.  This ensures that the currentThread is available in
     // the thread objects destructor.
     //
-    JTCTSS::set(sm_tss_key, 0);
+    if (clear_tss)
+        JTCTSS::set(sm_tss_key, 0);
 }
 
 #ifndef HAVE_JTC_NO_IOSTREAM

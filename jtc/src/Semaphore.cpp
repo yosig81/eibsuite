@@ -11,7 +11,6 @@
 #include <JTCSemaphore.h>
 
 #if defined(HAVE_POSIX_THREADS)
-#   include <unistd.h>
 #   include <sys/time.h>
 #endif
 
@@ -28,7 +27,16 @@ using namespace std;
 JTCSemaphore::JTCSemaphore(long initial_count)
 {
 #if defined(HAVE_POSIX_THREADS)
-    JTC_SYSCALL_3(sem_init, &m_sem, 0, initial_count, == -1)
+    m_count = initial_count;
+    int rc = pthread_mutex_init(&m_mutex, 0);
+    if (rc != 0)
+        JTC_THROW_EXCEPTION(rc, "pthread_mutex_init failed in JTCSemaphore")
+    rc = pthread_cond_init(&m_cond, 0);
+    if (rc != 0)
+    {
+        pthread_mutex_destroy(&m_mutex);
+        JTC_THROW_EXCEPTION(rc, "pthread_cond_init failed in JTCSemaphore")
+    }
 #endif
 #if defined(HAVE_WIN32_THREADS)
     JTC_SYSCALL_4(m_sem = CreateSemaphore, 0, initial_count, 0x7fffffff, 0,
@@ -39,7 +47,8 @@ JTCSemaphore::JTCSemaphore(long initial_count)
 JTCSemaphore::~JTCSemaphore()
 {
 #if defined(HAVE_POSIX_THREADS)
-    sem_destroy(&m_sem);
+    pthread_cond_destroy(&m_cond);
+    pthread_mutex_destroy(&m_mutex);
 #endif
 #if defined(HAVE_WIN32_THREADS)
     CloseHandle(m_sem);
@@ -53,13 +62,22 @@ bool
 JTCSemaphore::wait()
 {
 #if defined(HAVE_POSIX_THREADS)
-    int rc;
-    rc = sem_wait(&m_sem);
+    int rc = pthread_mutex_lock(&m_mutex);
+    if (rc != 0)
+        JTC_THROW_EXCEPTION(rc, "Semaphore wait: pthread_mutex_lock failed")
 
-    if (rc != 0 && errno != ETIMEDOUT)
-        JTC_THROW_EXCEPTION(errno, "Semaphore wait aborted due to error.")
-
-    return !rc;
+    while (m_count <= 0)
+    {
+        rc = pthread_cond_wait(&m_cond, &m_mutex);
+        if (rc != 0)
+        {
+            pthread_mutex_unlock(&m_mutex);
+            JTC_THROW_EXCEPTION(rc, "Semaphore wait: pthread_cond_wait failed")
+        }
+    }
+    --m_count;
+    pthread_mutex_unlock(&m_mutex);
+    return true;
 #endif
 #if defined(HAVE_WIN32_THREADS)
     int rc;
@@ -68,79 +86,49 @@ JTCSemaphore::wait()
 #endif
 }
 
-//
-// HP-UX, AIX, and Solaris 9 do not have a timed wait semaphore so we need
-// to exclude the ability to wait for a set period of time on a JTCSemaphore.
-//
-#if !defined(__hpux) && !defined(_AIX) && !defined(__sun)
 bool
 JTCSemaphore::wait(long timeout)
 {
 #if defined(HAVE_POSIX_THREADS)
-    int rc;
     if (timeout < 0)
     {
-        rc = sem_wait(&m_sem);
+        return wait(); // infinite wait
     }
-	else
-	{
-		struct timeval tv;
-		struct timespec abstime;
-		gettimeofday(&tv, 0);
-        //                       123456789 - 10^9
-        const long oneBillion = 1000000000;
 
-        abstime.tv_sec = tv.tv_sec + (timeout / 1000);
-        abstime.tv_nsec = (tv.tv_usec * 1000) + ((timeout % 1000) * 1000000);
-		if (abstime.tv_nsec >= oneBillion)
-		{
-		   ++abstime.tv_sec;
-		   abstime.tv_nsec -= oneBillion;
-		}
+    struct timeval tv;
+    struct timespec abstime;
+    gettimeofday(&tv, 0);
+    const long oneBillion = 1000000000;
 
-	#if defined(__APPLE__)
-		//
-		// macOS toolchains may not expose sem_timedwait() for unnamed
-		// POSIX semaphores. Emulate timed wait with sem_trywait() polling.
-		//
-		const long long deadline_msec =
-			((long long)abstime.tv_sec * 1000LL) + (abstime.tv_nsec / 1000000LL);
+    abstime.tv_sec = tv.tv_sec + (timeout / 1000);
+    abstime.tv_nsec = (tv.tv_usec * 1000) + ((timeout % 1000) * 1000000);
+    if (abstime.tv_nsec >= oneBillion)
+    {
+        ++abstime.tv_sec;
+        abstime.tv_nsec -= oneBillion;
+    }
 
-		while (true)
-		{
-			rc = sem_trywait(&m_sem);
-			if (rc == 0)
-			{
-				break; // acquired
-			}
-			if (errno != EAGAIN && errno != EINTR)
-			{
-				break; // real error
-			}
+    int rc = pthread_mutex_lock(&m_mutex);
+    if (rc != 0)
+        JTC_THROW_EXCEPTION(rc, "Semaphore wait: pthread_mutex_lock failed")
 
-			struct timeval now;
-			gettimeofday(&now, 0);
-			const long long now_msec =
-				((long long)now.tv_sec * 1000LL) + (now.tv_usec / 1000LL);
-			if (now_msec >= deadline_msec)
-			{
-				errno = ETIMEDOUT;
-				break;
-			}
-			usleep(1000); // 1ms poll interval
-		}
-	#else
-		rc = sem_timedwait(&m_sem, &abstime);
-	#endif
-	}
-    if (rc != 0 && errno != ETIMEDOUT)
-        JTC_THROW_EXCEPTION(errno, "Semaphore wait aborted due to error.")
-
-    //
-    // Getting here implies that if rc != 0, then the errno is ETIMEDOUT.
-    // This means we should return false for this method.
-    //
-    return !rc;
+    while (m_count <= 0)
+    {
+        rc = pthread_cond_timedwait(&m_cond, &m_mutex, &abstime);
+        if (rc == ETIMEDOUT)
+        {
+            pthread_mutex_unlock(&m_mutex);
+            return false;
+        }
+        if (rc != 0)
+        {
+            pthread_mutex_unlock(&m_mutex);
+            JTC_THROW_EXCEPTION(rc, "Semaphore wait: pthread_cond_timedwait failed")
+        }
+    }
+    --m_count;
+    pthread_mutex_unlock(&m_mutex);
+    return true;
 #endif
 #if defined(HAVE_WIN32_THREADS)
     if (timeout < 0)
@@ -152,13 +140,25 @@ JTCSemaphore::wait(long timeout)
     return rc != WAIT_TIMEOUT;
 #endif
 }
-#endif // __hpux, _AIX
 
 void
 JTCSemaphore::post(int count)
 {
 #if defined(HAVE_POSIX_THREADS)
-    JTC_SYSCALL_1(sem_post, &m_sem, == -1);
+    int rc = pthread_mutex_lock(&m_mutex);
+    if (rc != 0)
+        JTC_THROW_EXCEPTION(rc, "Semaphore post: pthread_mutex_lock failed")
+
+    m_count += count;
+
+    // Wake waiting threads. If count > 1, broadcast to wake all waiters
+    // so they can each re-check the count.
+    if (count > 1)
+        pthread_cond_broadcast(&m_cond);
+    else if (count == 1)
+        pthread_cond_signal(&m_cond);
+
+    pthread_mutex_unlock(&m_mutex);
 #endif
 #if defined(HAVE_WIN32_THREADS)
     JTC_SYSCALL_3(ReleaseSemaphore, m_sem, count, 0, == 0)

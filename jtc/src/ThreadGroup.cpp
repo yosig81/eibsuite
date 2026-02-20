@@ -297,7 +297,7 @@ JTCThreadGroup::enumerate(JTCThreadGroupHandle* list, int len,
 	if (m_destroyed)
 	    return 0;
         
-	int ng = m_nthreads;
+	int ng = m_ngroups;
 	if(ng > len - n)
 	    ng = len - n;
         

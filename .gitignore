@@ -17,13 +17,26 @@ EIBStdLib/test/run_tests*.log
 jtc/linux/*.o
 jtc/linux/*.d
 jtc/linux/*.so
-jtc/tests/
+
+# jtc test outputs
+jtc/tests/build/
+jtc/tests/run_tests
+jtc/tests/run_tests*.log
 
 # EIBServer build outputs
 EIBServer/linux/*.o
 EIBServer/linux/*.d
 EIBServer/linux/conf/
 EIBServer/linux/EIBServer
+
+# EIBServer test outputs
+EIBServer/test/build/
+EIBServer/test/run_tests
+EIBServer/test/run_tests*.log
+
+# EIBServer integration test outputs
+EIBServer/test/build_integ/
+EIBServer/test/run_integration_tests
 
 # EIBServer runtime files
 EIBServer/conf/

@@ -71,6 +71,7 @@ public:
 	if (this != &e)
 	{
 	    error_ = e.error_;
+	    delete[] note_;
 	    note_ = new char[strlen(e.note_) +1];
 	    strcpy(note_, e.note_);
 	}
