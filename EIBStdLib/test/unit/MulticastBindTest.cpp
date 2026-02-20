@@ -13,11 +13,6 @@
 #include <cstring>
 #include <map>
 
-// GTEST_SKIP was added in Google Test 1.10. Provide a fallback for older versions.
-#ifndef GTEST_SKIP
-#define GTEST_SKIP() GTEST_LOG_(INFO) << "Skipped: "
-#endif
-
 using namespace EIBStdLibTest;
 
 /**

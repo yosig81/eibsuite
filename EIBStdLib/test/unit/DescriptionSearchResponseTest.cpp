@@ -97,7 +97,7 @@ TEST_F(DescriptionSearchResponseTest, DescriptionResponse_StringConvertersCoverK
     CString services;
     CDescriptionResponse::SupportedServicesToString(
         SERVICE_CORE | SERVICE_ROUTING | SERVICE_OBJSRV, services);
-    EXPECT_TRUE(CString(services).Find("Core") != std::string::npos);
-    EXPECT_TRUE(CString(services).Find("Routing") != std::string::npos);
-    EXPECT_TRUE(CString(services).Find("Object-Server") != std::string::npos);
+    EXPECT_NE(CString(services).Find("Core"), -1);
+    EXPECT_NE(CString(services).Find("Routing"), -1);
+    EXPECT_NE(CString(services).Find("Object-Server"), -1);
 }
