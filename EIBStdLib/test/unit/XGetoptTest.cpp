@@ -12,8 +12,10 @@ namespace {
 void ResetGetoptState() {
 #if defined(__APPLE__)
     optreset = 1;
-#endif
     optind = 1;
+#else
+    optind = 0;  // GNU getopt requires 0 for a full reset
+#endif
     opterr = 0;
     optarg = NULL;
 }

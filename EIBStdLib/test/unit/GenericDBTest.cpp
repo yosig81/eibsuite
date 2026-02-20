@@ -109,7 +109,7 @@ TEST_F(GenericDBTest, AddGetEditDelete_RecordLifecycle) {
 
 TEST_F(GenericDBTest, Init_CreatesMissingFile) {
     TestGenericDB db;
-    CString path = MakeTempPath("/tmp/eib_genericdb_init_XXXXXX.conf");
+    CString path = MakeTempPath("/tmp/eib_genericdb_init_XXXXXX");
 
     EXPECT_EQ(-1, access(path.GetBuffer(), F_OK));
     db.Init(path);
@@ -120,7 +120,7 @@ TEST_F(GenericDBTest, Init_CreatesMissingFile) {
 
 TEST_F(GenericDBTest, SaveAndLoad_RoundTripMultipleRecords) {
     TestGenericDB db;
-    CString path = MakeTempPath("/tmp/eib_genericdb_roundtrip_XXXXXX.conf");
+    CString path = MakeTempPath("/tmp/eib_genericdb_roundtrip_XXXXXX");
     db.Init(path);
 
     GenericRecord a;
@@ -161,7 +161,7 @@ TEST_F(GenericDBTest, SaveAndLoad_RoundTripMultipleRecords) {
 
 TEST_F(GenericDBTest, Load_ParamBeforeAnyRecord_Throws) {
     TestGenericDB db;
-    CString path = MakeTempPath("/tmp/eib_genericdb_err_empty_brackets_XXXXXX.conf");
+    CString path = MakeTempPath("/tmp/eib_genericdb_err_empty_brackets_XXXXXX");
     WriteFile(path, "value = 7\n");
     db.SetFileWithoutCreate(path);
 
@@ -171,7 +171,7 @@ TEST_F(GenericDBTest, Load_ParamBeforeAnyRecord_Throws) {
 
 TEST_F(GenericDBTest, Load_MalformedBlockLine_Throws) {
     TestGenericDB db;
-    CString path = MakeTempPath("/tmp/eib_genericdb_err_block_XXXXXX.conf");
+    CString path = MakeTempPath("/tmp/eib_genericdb_err_block_XXXXXX");
     WriteFile(path, "[broken\nvalue = 7\n");
     db.SetFileWithoutCreate(path);
 
@@ -181,7 +181,7 @@ TEST_F(GenericDBTest, Load_MalformedBlockLine_Throws) {
 
 TEST_F(GenericDBTest, Load_MissingEquals_Throws) {
     TestGenericDB db;
-    CString path = MakeTempPath("/tmp/eib_genericdb_err_equals_XXXXXX.conf");
+    CString path = MakeTempPath("/tmp/eib_genericdb_err_equals_XXXXXX");
     WriteFile(path, "[rec]\nvalue 7\n");
     db.SetFileWithoutCreate(path);
 
@@ -191,7 +191,7 @@ TEST_F(GenericDBTest, Load_MissingEquals_Throws) {
 
 TEST_F(GenericDBTest, Load_MissingValue_Throws) {
     TestGenericDB db;
-    CString path = MakeTempPath("/tmp/eib_genericdb_err_value_XXXXXX.conf");
+    CString path = MakeTempPath("/tmp/eib_genericdb_err_value_XXXXXX");
     WriteFile(path, "[rec]\nvalue =\n");
     db.SetFileWithoutCreate(path);
 
@@ -230,7 +230,7 @@ TEST_F(GenericDBTest, ClearAndGetNumOfRecords_Work) {
 
 TEST_F(GenericDBTest, Load_MissingFile_Throws) {
     TestGenericDB db;
-    CString path = MakeTempPath("/tmp/eib_genericdb_missing_XXXXXX.conf");
+    CString path = MakeTempPath("/tmp/eib_genericdb_missing_XXXXXX");
     unlink(path.GetBuffer());
     db.SetFileWithoutCreate(path);
 
@@ -251,7 +251,7 @@ TEST_F(GenericDBTest, Save_InvalidPath_ReturnsFalse) {
 
 TEST_F(GenericDBTest, Load_CommentsWhitespaceAndCrlf_AreHandled) {
     TestGenericDB db;
-    CString path = MakeTempPath("/tmp/eib_genericdb_whitespace_XXXXXX.conf");
+    CString path = MakeTempPath("/tmp/eib_genericdb_whitespace_XXXXXX");
     WriteFile(
         path,
         "# comment\r\n"

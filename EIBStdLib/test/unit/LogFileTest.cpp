@@ -95,7 +95,7 @@ TEST_F(LogFileTest, LevelFiltering_AppliesToAllTargets) {
 
 TEST_F(LogFileTest, FileTarget_WritesWithoutPrinter) {
     CLogFile log;
-    CString path = MakeTempLogPath("/tmp/eib_logfile_file_only_XXXXXX.log");
+    CString path = MakeTempLogPath("/tmp/eib_logfile_file_only_XXXXXX");
 
     log.Init(path);
     log.SetPrompt(false);
@@ -110,7 +110,7 @@ TEST_F(LogFileTest, FileTarget_WritesWithoutPrinter) {
 
 TEST_F(LogFileTest, BothTargets_WriteToCallbackAndFile) {
     CLogFile log;
-    CString path = MakeTempLogPath("/tmp/eib_logfile_both_XXXXXX.log");
+    CString path = MakeTempLogPath("/tmp/eib_logfile_both_XXXXXX");
 
     log.Init(path);
     log.SetPrinterMethod(CapturePrinter);

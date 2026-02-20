@@ -121,7 +121,8 @@ CEIBNetPacket<EIBNETIP_DESCRIPTION_RESPONSE>(DESCRIPTION_RESPONSE)
 }
 
 CDescriptionResponse::CDescriptionResponse(unsigned char* data, int len) :
-CEIBNetPacket<EIBNETIP_DESCRIPTION_RESPONSE>(data)
+CEIBNetPacket<EIBNETIP_DESCRIPTION_RESPONSE>(data),
+_supported_services(0)
 {
 	_data.manufacturer = NULL;
 	_data.supported.data = NULL;
