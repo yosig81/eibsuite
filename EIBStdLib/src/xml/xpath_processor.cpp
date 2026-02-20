@@ -1001,7 +1001,7 @@ void xpath_processor::v_execute_absolute_path (
    if (o_with_rel)
    {
       int i_1, i_2, i_3;
-      int i_bak_position, i_current, i_first, i_relative;
+      int i_current, i_first, i_relative;
       TIXML_STRING S_lit;
 
       // compute position of the first (absolute) step
@@ -1022,7 +1022,7 @@ void xpath_processor::v_execute_absolute_path (
          i_first = i_relative;
       }
       // i_first = i_3 - 1;
-      i_bak_position = as_action_store . i_get_position ();
+      as_action_store . i_get_position ();
       as_action_store . v_set_position (i_first);
       if (o_everywhere)
          i_relative_action = -1;

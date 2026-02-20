@@ -83,7 +83,6 @@ int CUtils::GetNumOfNICs()
 
 	struct ifconf ifc;
 	char buff[1024];
-	struct ifreq *ifr;
 	int skfd;
 	ifc.ifc_len = sizeof(buff);
 	ifc.ifc_buf = buff;
@@ -95,7 +94,6 @@ int CUtils::GetNumOfNICs()
 		printf("SIOCGIFCONF:Failed \n");
 		exit(1);
 	}
-	ifr = ifc.ifc_req;
 	return (ifc.ifc_len / sizeof(struct ifreq));
 #endif
 }
@@ -130,10 +128,7 @@ bool CUtils::EnumNics(map<CString,CString>& nics)
 #else
 	char          buf[1024];
 	struct ifconf ifc;
-	struct ifreq *ifr;
 	int           sck;
-	int           nInterfaces;
-	int           i;
 
 	/* Get a socket handle. */
 	sck = socket(AF_INET, SOCK_DGRAM, 0);
