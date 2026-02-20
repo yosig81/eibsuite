@@ -29,16 +29,22 @@ public:
         bool emu_ok = InitEmulator();
         ASSERT_TRUE(emu_ok) << "Emulator Init() failed";
 
-        // 2. Start emulator handler threads
+        // 2. Suppress emulator console output -- keep logs in file only
+        SuppressEmulatorScreen();
+
+        // 3. Start emulator handler threads
         StartEmulator();
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-        // 3. Create and init the server singleton
+        // 4. Create and init the server singleton
         CEIBServer::Create();
         bool srv_ok = CEIBServer::GetInstance().Init();
         ASSERT_TRUE(srv_ok) << "CEIBServer::Init() failed";
 
-        // 4. Start server threads
+        // 5. Suppress server console output -- keep logs in file only
+        CEIBServer::GetInstance().GetLog().SetPrompt(false);
+
+        // 6. Start server threads
         CEIBServer::GetInstance().Start();
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }

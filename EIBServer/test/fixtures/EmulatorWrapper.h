@@ -11,9 +11,10 @@
 #ifndef EMULATOR_WRAPPER_H
 #define EMULATOR_WRAPPER_H
 
-bool InitEmulator();   // CEIBEmulator::GetInstance().Init()
-void StartEmulator();  // CEIBEmulator::GetInstance().Run(NULL)
-void StopEmulator();   // CEIBEmulator::GetInstance().Close()
+bool InitEmulator();           // CEIBEmulator::GetInstance().Init()
+void StartEmulator();          // CEIBEmulator::GetInstance().Run(NULL)
+void StopEmulator();           // CEIBEmulator::GetInstance().Close()
+void SuppressEmulatorScreen(); // CEIBEmulator::GetInstance().GetLog().SetPrompt(false)
 
 // Send an unsolicited indication from the emulator to connected clients.
 // group_address: 3-level EIB group address string (e.g. "1/2/3")

@@ -21,6 +21,11 @@ void StopEmulator()
     CEIBEmulator::GetInstance().Close();
 }
 
+void SuppressEmulatorScreen()
+{
+    CEIBEmulator::GetInstance().GetLog().SetPrompt(false);
+}
+
 void EmulatorSendIndication(const char* group_address,
                             const unsigned char* value,
                             int value_len)

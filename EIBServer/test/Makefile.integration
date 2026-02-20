@@ -186,6 +186,13 @@ $(TEST_EXECUTABLE): $(ALL_OBJECTS)
 # ---------------------------------------------------------------------------
 WORKDIR := /tmp/eibtest
 
+# Loopback interface: lo0 on macOS, lo on Linux
+ifeq ($(UNAME_S),Darwin)
+  LOOPBACK_IF := lo0
+else
+  LOOPBACK_IF := lo
+endif
+
 run: $(TEST_EXECUTABLE)
 	@echo '========================================='
 	@echo 'Running EIBServer Integration Tests'
@@ -193,75 +200,13 @@ run: $(TEST_EXECUTABLE)
 	@# Create working directory structure
 	@mkdir -p $(WORKDIR)/conf $(WORKDIR)/logs $(WORKDIR)/www $(WORKDIR)/Images
 	@# Write EIB.conf
-	@printf '[EIB-GENERAL]\n\
-EIB_INITIAL_KEY = EIBKEY\n\
-LISTENING_PORT = 15000\n\
-MAX_CONCURRENT_CLIENTS = 10\n\
-LOG_LEVEL = 3\n\
-LOG_FILE_MAX_SIZE = 512\n\
-MAX_NUM_OBJECTS_HISTORY = 100\n\
-EIB_DEVICE_MODE = MODE_TUNNELING\n\
-EIB_IP_ADDRESS = 127.0.0.1\n\
-AUTO_DETECT_EIB_DEVICE_ADDRESS = false\n\
-EIB_LOCAL_INTERFACE = lo0\n\
-CLIENTS_LISTEN_INTERFACE = lo0\n\
-WEB_SERVER_PORT = 18080\n\
-WWW_ROOT = ./www\n\
-IMAGES_FOLDER = ./Images\n\
-WEB_LISTEN_INTERFACE = lo0\n' > $(WORKDIR)/conf/EIB.conf
+	@printf '%s\n' '[EIB-GENERAL]' 'EIB_INITIAL_KEY = EIBKEY' 'LISTENING_PORT = 15000' 'MAX_CONCURRENT_CLIENTS = 10' 'LOG_LEVEL = 3' 'LOG_FILE_MAX_SIZE = 512' 'MAX_NUM_OBJECTS_HISTORY = 100' 'EIB_DEVICE_MODE = MODE_TUNNELING' 'EIB_IP_ADDRESS = 127.0.0.1' 'AUTO_DETECT_EIB_DEVICE_ADDRESS = false' 'EIB_LOCAL_INTERFACE = $(LOOPBACK_IF)' 'CLIENTS_LISTEN_INTERFACE = $(LOOPBACK_IF)' 'WEB_SERVER_PORT = 18080' 'WWW_ROOT = ./www' 'IMAGES_FOLDER = ./Images' 'WEB_LISTEN_INTERFACE = $(LOOPBACK_IF)' > $(WORKDIR)/conf/EIB.conf
 	@# Write Users.db
-	@printf '[admin]\n\
-PASSWORD = admin123\n\
-PRIVILIGES = 15\n\
-ALLOWED_SOURCE_MASK = 0xFFFF\n\
-ALLOWED_DEST_MASK = 0xFFFF\n\
-\n\
-[readonly]\n\
-PASSWORD = readonly123\n\
-PRIVILIGES = 5\n\
-ALLOWED_SOURCE_MASK = 0xFFFF\n\
-ALLOWED_DEST_MASK = 0xFFFF\n\
-\n\
-[noaccess]\n\
-PASSWORD = noaccess123\n\
-PRIVILIGES = 0\n\
-ALLOWED_SOURCE_MASK = 0x0000\n\
-ALLOWED_DEST_MASK = 0x0000\n\
-\n\
-[restricted_dest]\n\
-PASSWORD = restdest123\n\
-PRIVILIGES = 7\n\
-ALLOWED_SOURCE_MASK = 0xFFFF\n\
-ALLOWED_DEST_MASK = 0xFF00\n\
-\n\
-[restricted_src]\n\
-PASSWORD = restsrc123\n\
-PRIVILIGES = 7\n\
-ALLOWED_SOURCE_MASK = 0xFF00\n\
-ALLOWED_DEST_MASK = 0xFFFF\n\
-\n\
-[restricted_both]\n\
-PASSWORD = restboth123\n\
-PRIVILIGES = 7\n\
-ALLOWED_SOURCE_MASK = 0xFF00\n\
-ALLOWED_DEST_MASK = 0xFF00\n' > $(WORKDIR)/conf/Users.db
+	@printf '%s\n' '[admin]' 'PASSWORD = admin123' 'PRIVILIGES = 15' 'ALLOWED_SOURCE_MASK = 0xFFFF' 'ALLOWED_DEST_MASK = 0xFFFF' '' '[readonly]' 'PASSWORD = readonly123' 'PRIVILIGES = 5' 'ALLOWED_SOURCE_MASK = 0xFFFF' 'ALLOWED_DEST_MASK = 0xFFFF' '' '[noaccess]' 'PASSWORD = noaccess123' 'PRIVILIGES = 0' 'ALLOWED_SOURCE_MASK = 0x0000' 'ALLOWED_DEST_MASK = 0x0000' '' '[restricted_dest]' 'PASSWORD = restdest123' 'PRIVILIGES = 7' 'ALLOWED_SOURCE_MASK = 0xFFFF' 'ALLOWED_DEST_MASK = 0xFF00' '' '[restricted_src]' 'PASSWORD = restsrc123' 'PRIVILIGES = 7' 'ALLOWED_SOURCE_MASK = 0xFF00' 'ALLOWED_DEST_MASK = 0xFFFF' '' '[restricted_both]' 'PASSWORD = restboth123' 'PRIVILIGES = 7' 'ALLOWED_SOURCE_MASK = 0xFF00' 'ALLOWED_DEST_MASK = 0xFF00' > $(WORKDIR)/conf/Users.db
 	@# Write Emulator.conf
-	@printf '[EMULAOTR-GENERAL]\n\
-EIB_PORT = 3671\n\
-LOG_LEVEL = 3\n\
-LISTEN_INTERFACE = lo0\n' > $(WORKDIR)/conf/Emulator.conf
+	@printf '%s\n' '[EMULAOTR-GENERAL]' 'EIB_PORT = 3671' 'LOG_LEVEL = 3' 'LISTEN_INTERFACE = $(LOOPBACK_IF)' > $(WORKDIR)/conf/Emulator.conf
 	@# Write Emulator.db
-	@printf '[0/0/1]\n\
-PHY = 1.1.1\n\
-VALUE = 0x01\n\
-\n\
-[0/0/2]\n\
-PHY = 1.1.2\n\
-VALUE = 0x0080\n\
-\n\
-[1/2/3]\n\
-PHY = 1.2.1\n\
-VALUE = 0x00\n' > $(WORKDIR)/conf/Emulator.db
+	@printf '%s\n' '[0/0/1]' 'PHY = 1.1.1' 'VALUE = 0x01' '' '[0/0/2]' 'PHY = 1.1.2' 'VALUE = 0x0080' '' '[1/2/3]' 'PHY = 1.2.1' 'VALUE = 0x00' > $(WORKDIR)/conf/Emulator.db
 	@# Write minimal index.html
 	@printf '<html><body>EIBServer Test</body></html>\n' > $(WORKDIR)/www/index.html
 	@# Run tests from the working directory so CURRENT_CONF_FOLDER resolves correctly
