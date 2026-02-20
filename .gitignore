@@ -18,3 +18,29 @@ jtc/linux/*.o
 jtc/linux/*.d
 jtc/linux/*.so
 jtc/tests/
+
+# EIBServer build outputs
+EIBServer/linux/*.o
+EIBServer/linux/*.d
+EIBServer/linux/conf/
+EIBServer/linux/EIBServer
+
+# EIBServer runtime files
+EIBServer/conf/
+EIBServer/logs/
+
+# WEBServer build outputs
+WEBServer/linux/*.o
+WEBServer/linux/*.d
+WEBServer/linux/conf/
+WEBServer/linux/logs/
+WEBServer/linux/WEBServer
+
+# Emulator build outputs
+Emulator-ng/linux/*.o
+Emulator-ng/linux/*.d
+Emulator-ng/linux/Emulator-ng
+
+# Top-level runtime files
+conf/
+logs/
