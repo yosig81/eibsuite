@@ -82,6 +82,8 @@ private:
 	// Extract JSON field from body
 	CString GetJsonField(const CString& json, const CString& field);
 
+	friend class WebHandlerUtilTest;
+
 private:
 	queue<TCPSocket*> _job_queue;
 	bool _stop;

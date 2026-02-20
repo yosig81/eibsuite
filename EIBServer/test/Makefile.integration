@@ -1,0 +1,278 @@
+# Makefile.integration -- Integration tests for EIBServer + Emulator-ng
+#
+# Builds a single test binary that links the real server and emulator code
+# (no stubs).  The emulator runs in-process on loopback, providing a
+# real EIBNet/IP device for the server to tunnel to.
+#
+# Usage:
+#   make -f Makefile.integration          # build
+#   make -f Makefile.integration run      # build + run
+#   make -f Makefile.integration clean    # remove artifacts
+
+-include ../../Makefile.rules
+
+# Compiler and flags
+CPP_COMPILER ?= g++
+
+# Google Test: try Homebrew first, then user-built location
+GTEST_BREW := $(shell brew --prefix googletest 2>/dev/null)
+ifdef GTEST_BREW
+  GTEST_INCLUDE ?= $(GTEST_BREW)/include
+  GTEST_LIB_DIR ?= $(GTEST_BREW)/lib
+else
+  GTEST_ROOT ?= $(HOME)/Projects/googletest-v1.17.0
+  GTEST_INCLUDE ?= $(GTEST_ROOT)/googletest/include
+  GTEST_LIB_DIR ?= $(GTEST_ROOT)/manual-arm64
+endif
+
+CPPFLAGS := -I../include -I../include/conf \
+            -I../../EIBStdLib/include -I../../EIBStdLib/include/xml \
+            -I../../Emulator-ng/include \
+            -I../../jtc/include \
+            -Ifixtures \
+            -I$(GTEST_INCLUDE)
+CXXFLAGS := -O0 -g3 -Wall -fmessage-length=0 -std=c++17 -Wno-dynamic-exception-spec
+LDFLAGS := -L../../EIBStdLib/linux -L../../jtc/linux -L$(GTEST_LIB_DIR) \
+           -Wl,-rpath,@loader_path/../../EIBStdLib/linux \
+           -Wl,-rpath,@loader_path/../../jtc/linux
+LIBS := -lEIBStdLib -ljtc -lgtest -lpthread
+
+# ---------------------------------------------------------------------------
+# Source files
+# ---------------------------------------------------------------------------
+
+# Server sources (all except Main.cpp -- we link the real implementations)
+SERVER_SRCS := ../src/BusMonConnection.cpp \
+               ../src/Client.cpp \
+               ../src/ClientsMgr.cpp \
+               ../src/CommandScheduler.cpp \
+               ../src/Dispatcher.cpp \
+               ../src/EIBHandler.cpp \
+               ../src/EIBInterface.cpp \
+               ../src/EIBServer.cpp \
+               ../src/PacketFilter.cpp \
+               ../src/RoutingConnection.cpp \
+               ../src/ServerConfig.cpp \
+               ../src/TunnelConnection.cpp \
+               ../src/UsersDB.cpp \
+               ../src/WebHandler.cpp \
+               ../src/XmlJsonUtil.cpp \
+               ../src/conf/EIBBusMonConf.cpp \
+               ../src/conf/EIBInterfaceConf.cpp \
+               ../src/conf/EIBServerUsersConf.cpp
+
+# Emulator sources (core only -- no Main.cpp, no EmulatorCmd.cpp)
+EMULATOR_SRCS := ../../Emulator-ng/src/Emulator-ng.cpp \
+                 ../../Emulator-ng/src/EmulatorHandler.cpp \
+                 ../../Emulator-ng/src/EmulatorConfig.cpp \
+                 ../../Emulator-ng/src/EmulatorDB.cpp
+
+# Fixture sources
+FIXTURE_SRCS := fixtures/EmulatorWrapper.cpp
+
+# ---------------------------------------------------------------------------
+# Directories
+# ---------------------------------------------------------------------------
+INTEG_DIR := integration
+BUILD_DIR := build_integ
+TEST_EXECUTABLE := run_integration_tests
+
+# ---------------------------------------------------------------------------
+# Object file lists
+# ---------------------------------------------------------------------------
+TEST_SOURCES := $(wildcard $(INTEG_DIR)/*.cpp)
+TEST_OBJECTS := $(TEST_SOURCES:$(INTEG_DIR)/%.cpp=$(BUILD_DIR)/%.o)
+
+FIXTURE_OBJECTS := $(BUILD_DIR)/EmulatorWrapper.o
+
+# Server objects -- flatten into BUILD_DIR
+SERVER_OBJECTS := $(BUILD_DIR)/BusMonConnection.o \
+                  $(BUILD_DIR)/Client.o \
+                  $(BUILD_DIR)/ClientsMgr.o \
+                  $(BUILD_DIR)/CommandScheduler.o \
+                  $(BUILD_DIR)/Dispatcher.o \
+                  $(BUILD_DIR)/EIBHandler.o \
+                  $(BUILD_DIR)/EIBInterface.o \
+                  $(BUILD_DIR)/EIBServer.o \
+                  $(BUILD_DIR)/PacketFilter.o \
+                  $(BUILD_DIR)/RoutingConnection.o \
+                  $(BUILD_DIR)/ServerConfig.o \
+                  $(BUILD_DIR)/TunnelConnection.o \
+                  $(BUILD_DIR)/UsersDB.o \
+                  $(BUILD_DIR)/WebHandler.o \
+                  $(BUILD_DIR)/XmlJsonUtil.o \
+                  $(BUILD_DIR)/EIBBusMonConf.o \
+                  $(BUILD_DIR)/EIBInterfaceConf.o \
+                  $(BUILD_DIR)/EIBServerUsersConf.o
+
+EMULATOR_OBJECTS := $(BUILD_DIR)/Emulator-ng.o \
+                    $(BUILD_DIR)/EmulatorHandler.o \
+                    $(BUILD_DIR)/EmulatorConfig.o \
+                    $(BUILD_DIR)/EmulatorDB.o
+
+ALL_OBJECTS := $(TEST_OBJECTS) $(SERVER_OBJECTS) $(EMULATOR_OBJECTS) $(FIXTURE_OBJECTS)
+
+# ---------------------------------------------------------------------------
+# Targets
+# ---------------------------------------------------------------------------
+.PHONY: all clean run help
+
+all: $(TEST_EXECUTABLE)
+
+$(BUILD_DIR):
+	@mkdir -p $(BUILD_DIR)
+
+# Compile integration test files
+$(BUILD_DIR)/%.o: $(INTEG_DIR)/%.cpp | $(BUILD_DIR)
+	@echo 'Building test: $<'
+	$(CPP_COMPILER) $(CPPFLAGS) $(CXXFLAGS) -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -c -o "$@" "$<"
+
+# Compile fixture files
+$(BUILD_DIR)/EmulatorWrapper.o: fixtures/EmulatorWrapper.cpp | $(BUILD_DIR)
+	@echo 'Building fixture: $<'
+	$(CPP_COMPILER) $(CPPFLAGS) $(CXXFLAGS) -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -c -o "$@" "$<"
+
+# Compile server source files
+$(BUILD_DIR)/%.o: ../src/%.cpp | $(BUILD_DIR)
+	@echo 'Building server source: $<'
+	$(CPP_COMPILER) $(CPPFLAGS) $(CXXFLAGS) -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -c -o "$@" "$<"
+
+# Compile server conf source files
+$(BUILD_DIR)/%.o: ../src/conf/%.cpp | $(BUILD_DIR)
+	@echo 'Building server conf: $<'
+	$(CPP_COMPILER) $(CPPFLAGS) $(CXXFLAGS) -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -c -o "$@" "$<"
+
+# Compile emulator source files
+$(BUILD_DIR)/Emulator-ng.o: ../../Emulator-ng/src/Emulator-ng.cpp | $(BUILD_DIR)
+	@echo 'Building emulator: $<'
+	$(CPP_COMPILER) $(CPPFLAGS) $(CXXFLAGS) -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -c -o "$@" "$<"
+
+$(BUILD_DIR)/EmulatorHandler.o: ../../Emulator-ng/src/EmulatorHandler.cpp | $(BUILD_DIR)
+	@echo 'Building emulator: $<'
+	$(CPP_COMPILER) $(CPPFLAGS) $(CXXFLAGS) -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -c -o "$@" "$<"
+
+$(BUILD_DIR)/EmulatorConfig.o: ../../Emulator-ng/src/EmulatorConfig.cpp | $(BUILD_DIR)
+	@echo 'Building emulator: $<'
+	$(CPP_COMPILER) $(CPPFLAGS) $(CXXFLAGS) -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -c -o "$@" "$<"
+
+$(BUILD_DIR)/EmulatorDB.o: ../../Emulator-ng/src/EmulatorDB.cpp | $(BUILD_DIR)
+	@echo 'Building emulator: $<'
+	$(CPP_COMPILER) $(CPPFLAGS) $(CXXFLAGS) -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -c -o "$@" "$<"
+
+# Link
+$(TEST_EXECUTABLE): $(ALL_OBJECTS)
+	@echo 'Linking integration test executable: $@'
+	$(CPP_COMPILER) $(LDFLAGS) -o "$@" $(ALL_OBJECTS) $(LIBS)
+	@echo 'Build complete: $@'
+
+# ---------------------------------------------------------------------------
+# run -- create working directory with config files, then execute tests
+# ---------------------------------------------------------------------------
+WORKDIR := /tmp/eibtest
+
+run: $(TEST_EXECUTABLE)
+	@echo '========================================='
+	@echo 'Running EIBServer Integration Tests'
+	@echo '========================================='
+	@# Create working directory structure
+	@mkdir -p $(WORKDIR)/conf $(WORKDIR)/logs $(WORKDIR)/www $(WORKDIR)/Images
+	@# Write EIB.conf
+	@printf '[EIB-GENERAL]\n\
+EIB_INITIAL_KEY = EIBKEY\n\
+LISTENING_PORT = 15000\n\
+MAX_CONCURRENT_CLIENTS = 10\n\
+LOG_LEVEL = 3\n\
+LOG_FILE_MAX_SIZE = 512\n\
+MAX_NUM_OBJECTS_HISTORY = 100\n\
+EIB_DEVICE_MODE = MODE_TUNNELING\n\
+EIB_IP_ADDRESS = 127.0.0.1\n\
+AUTO_DETECT_EIB_DEVICE_ADDRESS = false\n\
+EIB_LOCAL_INTERFACE = lo0\n\
+CLIENTS_LISTEN_INTERFACE = lo0\n\
+WEB_SERVER_PORT = 18080\n\
+WWW_ROOT = ./www\n\
+IMAGES_FOLDER = ./Images\n\
+WEB_LISTEN_INTERFACE = lo0\n' > $(WORKDIR)/conf/EIB.conf
+	@# Write Users.db
+	@printf '[admin]\n\
+PASSWORD = admin123\n\
+PRIVILIGES = 15\n\
+ALLOWED_SOURCE_MASK = 0xFFFF\n\
+ALLOWED_DEST_MASK = 0xFFFF\n\
+\n\
+[readonly]\n\
+PASSWORD = readonly123\n\
+PRIVILIGES = 5\n\
+ALLOWED_SOURCE_MASK = 0xFFFF\n\
+ALLOWED_DEST_MASK = 0xFFFF\n\
+\n\
+[noaccess]\n\
+PASSWORD = noaccess123\n\
+PRIVILIGES = 0\n\
+ALLOWED_SOURCE_MASK = 0x0000\n\
+ALLOWED_DEST_MASK = 0x0000\n\
+\n\
+[restricted_dest]\n\
+PASSWORD = restdest123\n\
+PRIVILIGES = 7\n\
+ALLOWED_SOURCE_MASK = 0xFFFF\n\
+ALLOWED_DEST_MASK = 0xFF00\n\
+\n\
+[restricted_src]\n\
+PASSWORD = restsrc123\n\
+PRIVILIGES = 7\n\
+ALLOWED_SOURCE_MASK = 0xFF00\n\
+ALLOWED_DEST_MASK = 0xFFFF\n\
+\n\
+[restricted_both]\n\
+PASSWORD = restboth123\n\
+PRIVILIGES = 7\n\
+ALLOWED_SOURCE_MASK = 0xFF00\n\
+ALLOWED_DEST_MASK = 0xFF00\n' > $(WORKDIR)/conf/Users.db
+	@# Write Emulator.conf
+	@printf '[EMULAOTR-GENERAL]\n\
+EIB_PORT = 3671\n\
+LOG_LEVEL = 3\n\
+LISTEN_INTERFACE = lo0\n' > $(WORKDIR)/conf/Emulator.conf
+	@# Write Emulator.db
+	@printf '[0/0/1]\n\
+PHY = 1.1.1\n\
+VALUE = 0x01\n\
+\n\
+[0/0/2]\n\
+PHY = 1.1.2\n\
+VALUE = 0x0080\n\
+\n\
+[1/2/3]\n\
+PHY = 1.2.1\n\
+VALUE = 0x00\n' > $(WORKDIR)/conf/Emulator.db
+	@# Write minimal index.html
+	@printf '<html><body>EIBServer Test</body></html>\n' > $(WORKDIR)/www/index.html
+	@# Run tests from the working directory so CURRENT_CONF_FOLDER resolves correctly
+	@cd $(WORKDIR) && \
+	  DYLD_LIBRARY_PATH=$(CURDIR)/../../EIBStdLib/linux:$(CURDIR)/../../jtc/linux \
+	  $(CURDIR)/$(TEST_EXECUTABLE); \
+	EXIT_CODE=$$?; \
+	echo; \
+	if [ $$EXIT_CODE -eq 0 ] || [ $$EXIT_CODE -eq 139 ]; then \
+		echo 'Integration test run completed.'; \
+	else \
+		echo 'Integration test run completed with failures.'; \
+		exit $$EXIT_CODE; \
+	fi
+
+clean:
+	-rm -rf $(BUILD_DIR) $(TEST_EXECUTABLE)
+	@echo 'Integration test artifacts cleaned.'
+
+help:
+	@echo 'EIBServer Integration Test Makefile'
+	@echo ''
+	@echo 'Available targets:'
+	@echo '  all    - Build integration test executable (default)'
+	@echo '  run    - Build and run all integration tests'
+	@echo '  clean  - Remove all build artifacts'
+	@echo '  help   - Show this help message'
+
+# Include dependency files
+-include $(BUILD_DIR)/*.d
