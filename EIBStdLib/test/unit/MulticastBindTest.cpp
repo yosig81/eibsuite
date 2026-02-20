@@ -9,8 +9,14 @@
 #endif
 #include "Utils.h"
 #include "../fixtures/TestHelpers.h"
+#include <algorithm>
 #include <cstring>
 #include <map>
+
+// GTEST_SKIP was added in Google Test 1.10. Provide a fallback for older versions.
+#ifndef GTEST_SKIP
+#define GTEST_SKIP() GTEST_LOG_(INFO) << "Skipped: "
+#endif
 
 using namespace EIBStdLibTest;
 
@@ -35,7 +41,6 @@ namespace {
 // Use a link-local multicast address in the "administratively scoped" range
 // to avoid interfering with real KNX traffic.
 static const char* TEST_MCAST_GROUP = "239.255.77.1";
-static const int   TEST_MCAST_PORT  = 0; // let OS pick to avoid port conflicts
 
 std::string ToLowerStr(std::string value) {
     std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
