@@ -62,6 +62,11 @@ void CEmulatorCmd::HandleGenerateCommand()
 	int delay_ms = 0;
 	ConsoleCLI::GetIntRange("Delay between indications (ms): ", delay_ms, 0, 60000, 0);
 
+	if (!handler.HasConnectedClients()) {
+		LOG_SCREEN("No client connected. Aborting.\n");
+		return;
+	}
+
 	static bool seeded = false;
 	if (!seeded) {
 		srand((unsigned int)time(NULL));

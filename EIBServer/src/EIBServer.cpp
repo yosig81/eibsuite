@@ -168,6 +168,17 @@ bool CEIBServer::Init()
 		// Non-fatal: EIBServer can run without web UI
 	END_CATCH
 
+	if (!CDirectory::IsExist(_conf.GetWwwRoot())) {
+		_log.SetConsoleColor(YELLOW);
+		LOG_INFO("Warning: WWW root directory \"%s\" not found. Web UI will not be available.", _conf.GetWwwRoot().GetBuffer());
+		_log.SetConsoleColor(WHITE);
+	}
+	if (!CDirectory::IsExist(_conf.GetImagesFolder())) {
+		_log.SetConsoleColor(YELLOW);
+		LOG_INFO("Warning: Images directory \"%s\" not found.", _conf.GetImagesFolder().GetBuffer());
+		_log.SetConsoleColor(WHITE);
+	}
+
 	return res;
 }
 

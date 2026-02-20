@@ -125,7 +125,18 @@ bool CWEBServer::Init()
 		LOG_ERROR("Initializing WEB Interface...Failed. Reason: %s",e.what());
 		res = false;
 	END_CATCH
-	
+
+	if (!CDirectory::IsExist(_conf.GetWwwRoot())) {
+		_log.SetConsoleColor(YELLOW);
+		LOG_INFO("Warning: WWW root directory \"%s\" not found. Web UI will not be available.", _conf.GetWwwRoot().GetBuffer());
+		_log.SetConsoleColor(WHITE);
+	}
+	if (!CDirectory::IsExist(_conf.GetImagesFolder())) {
+		_log.SetConsoleColor(YELLOW);
+		LOG_INFO("Warning: Images directory \"%s\" not found.", _conf.GetImagesFolder().GetBuffer());
+		_log.SetConsoleColor(WHITE);
+	}
+
 	_domain = _dispatcher->GetServerAddress();
 	if(_dispatcher->GetServerPort() != DEFAULT_WEB_PORT){
 		_domain += ':';

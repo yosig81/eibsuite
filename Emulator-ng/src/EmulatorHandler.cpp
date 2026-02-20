@@ -54,6 +54,16 @@ void CEmulatorHandler::SendIndication(const CGroupEntry& ge)
 	_data_output_handler->EnqueueFrame(ge);
 }
 
+bool CEmulatorHandler::HasConnectedClients() const
+{
+	for(int i = 0; i < MAX_CONNS; i++){
+		if(_states[i] != NULL){
+			return true;
+		}
+	}
+	return false;
+}
+
 void CEmulatorHandler::Init(CEmulatorConfig* server_conf, CLogFile* log_file)
 {
 	_log_file = log_file;

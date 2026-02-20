@@ -28,6 +28,7 @@ public:
 	
 	void DisconnectClients();
 	void SendIndication(const CGroupEntry& ge);
+	bool HasConnectedClients() const;
 
 private:
 	typedef struct
