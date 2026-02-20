@@ -162,7 +162,7 @@ CEmulatorHandler::ConnectionState* CEmulatorHandler::AllocateNewState(const CStr
 		}
 	}
 	if(s == NULL){
-		LOG_ERROR("Error: EIB Relay is already connected to max number of clients.");
+		LOG_ERROR("Error: EIBEmulator is already connected to max number of clients.");
 	}
 	return s;
 }
@@ -184,7 +184,7 @@ void CEmulatorHandler::FreeConnection(CEmulatorHandler::ConnectionState* s)
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 CEmulatorHandler::CEmulatorInputHandler::CEmulatorInputHandler() :
-JTCThread("CRelayControlHandler"),
+JTCThread("CEmulatorInputHandler"),
 _emulator(NULL),
 _stop(false),
 _local_addr(EMPTY_STRING),
@@ -612,7 +612,7 @@ void CEmulatorHandler::CEmulatorInputHandler::HandleSearchRequest(unsigned char*
 		//send search response back to the sender
 		char serial[6] = { 0 };
 		unsigned long mcast = inet_addr(EIB_MULTICAST_ADDRESS);
-		const char* name = "EIB Relay Device";
+		const char* name = "EIB Emulator Device";
 		CSearchResponse resp(_local_addr,_local_port, MEDIUM_TP1, CEibAddress((unsigned int)0, false),
 				0, serial, mcast, serial, name, (SERVICE_CORE | SERVICE_DEV_MNGMT | SERVICE_TUNNELING));
 		resp.FillBuffer(buffer, max_len);
@@ -697,7 +697,7 @@ void CEmulatorHandler::CEmulatorInputHandler::Close()
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 CEmulatorHandler::CEmulatorOutputHandler::CEmulatorOutputHandler() :
-JTCThread("CRelayDataOutputHandler"),
+JTCThread("CEmulatorOutputHandler"),
 _emulator(NULL),
 _stop(false)
 {

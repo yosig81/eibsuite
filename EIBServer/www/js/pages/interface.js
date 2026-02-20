@@ -5,7 +5,7 @@ App.registerPage('interface', {
     render: function(container) {
         container.innerHTML =
             '<div class="card">' +
-                '<h2>EIB Interface Control</h2>' +
+                '<h2>EIBNet/IP Device Control</h2>' +
                 '<div class="toolbar">' +
                     '<button class="btn btn-primary" id="iface-refresh">Refresh</button>' +
                 '</div>' +
@@ -52,8 +52,8 @@ App.registerPage('interface', {
                         '</table>' +
                     '</div>' +
                     '<div style="margin-top:20px;">' +
-                        '<button class="btn btn-success" id="iface-start" disabled>Start Interface</button> ' +
-                        '<button class="btn btn-danger" id="iface-stop" disabled>Stop Interface</button>' +
+                        '<button class="btn btn-success" id="iface-start" disabled>Start Device</button> ' +
+                        '<button class="btn btn-danger" id="iface-stop" disabled>Stop Device</button>' +
                     '</div>' +
                 '</div>' +
             '</div>';
@@ -142,7 +142,7 @@ App.registerPage('interface', {
     },
 
     startInterface: function() {
-        if (!confirm('Start EIB Interface?')) return;
+        if (!confirm('Start EIBNet/IP Device?')) return;
         var self = this;
         App.api('POST', '/api/admin/interface/start').then(function(data) {
             if (data.error) {
@@ -150,7 +150,7 @@ App.registerPage('interface', {
             } else {
                 self._conf = data;
                 self.updateView();
-                self.showMsg('Interface started.', 'success-msg');
+                self.showMsg('Device started.', 'success-msg');
             }
         }).catch(function(err) {
             self.showMsg(err.message, 'error-msg');
@@ -158,7 +158,7 @@ App.registerPage('interface', {
     },
 
     stopInterface: function() {
-        if (!confirm('Stop EIB Interface?')) return;
+        if (!confirm('Stop EIBNet/IP Device?')) return;
         var self = this;
         App.api('POST', '/api/admin/interface/stop').then(function(data) {
             if (data.error) {
@@ -166,7 +166,7 @@ App.registerPage('interface', {
             } else {
                 self._conf = data;
                 self.updateView();
-                self.showMsg('Interface stopped.', 'success-msg');
+                self.showMsg('Device stopped.', 'success-msg');
             }
         }).catch(function(err) {
             self.showMsg(err.message, 'error-msg');

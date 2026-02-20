@@ -7,7 +7,7 @@ App.registerPage('dashboard', {
             '<div class="stats-grid" id="dash-stats">' +
                 '<div class="stat-card"><div class="stat-value" id="dash-eib-status">--</div><div class="stat-label">EIB Server</div></div>' +
                 '<div class="stat-card"><div class="stat-value" id="dash-addresses">--</div><div class="stat-label">Known Addresses</div></div>' +
-                '<div class="stat-card"><div class="stat-value" id="dash-iface-status">--</div><div class="stat-label">EIB Interface</div></div>' +
+                '<div class="stat-card"><div class="stat-value" id="dash-iface-status">--</div><div class="stat-label">EIBNet/IP Device</div></div>' +
             '</div>' +
             '<div class="card">' +
                 '<h2>Quick Actions</h2>' +

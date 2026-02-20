@@ -188,6 +188,13 @@ void CUtils::WaitForCharInput(char expected, const CString& msg, bool sleep)
 	{
 		cout << endl << msg.GetBuffer() << endl;
 		cin >> x ;
+		if(cin.fail() || cin.eof()){
+			// stdin not available (backgrounded/detached) - wait indefinitely via sleep
+			cin.clear();
+			while(true){
+				JTCThread::sleep(60000);
+			}
+		}
 		if(x != expected){
 			cout << "Incorrect Choice." << endl;
 			cin.ignore(INT_MAX,'\n');

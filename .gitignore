@@ -44,3 +44,8 @@ Emulator-ng/linux/Emulator-ng
 # Top-level runtime files
 conf/
 logs/
+# Library symlinks (created at runtime)
+EIBServer/libjtc.so
+EIBServer/libEIBStdLib.so
+Emulator-ng/libjtc.so
+Emulator-ng/libEIBStdLib.so

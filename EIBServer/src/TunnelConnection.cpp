@@ -490,7 +490,7 @@ void CTunnelHeartBeat::run()
 	while (ptr->IsConnected())
 	{
 		if(_counter == 3){
-			LOG_ERROR("[EIB Interface] Heartbeat to Device timeout. Stopping heartbeat thread.");
+			LOG_ERROR("[EIBNet/IP Device] Heartbeat timeout. Stopping heartbeat thread.");
 			break;
 		}
 		

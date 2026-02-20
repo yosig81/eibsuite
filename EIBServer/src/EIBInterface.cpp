@@ -101,12 +101,12 @@ void CEIBInterface::Init()
 		break;
 	}
 	if(result){
-		LOG_INFO("Remote EIB Interface DATA channel [%s:%d]",_connection->GetDeviceDataAddress().GetBuffer(),_connection->GetDeviceDataPort());
-		LOG_INFO("Remote EIB Interface CONTROL channel [%s:%d]",_connection->GetDeviceControlAddress().GetBuffer(),_connection->GetDeviceControlPort());
+		LOG_INFO("Remote EIBNet/IP Device DATA channel [%s:%d]",_connection->GetDeviceDataAddress().GetBuffer(),_connection->GetDeviceDataPort());
+		LOG_INFO("Remote EIBNet/IP Device CONTROL channel [%s:%d]",_connection->GetDeviceControlAddress().GetBuffer(),_connection->GetDeviceControlPort());
 		LOG_INFO("Local Interface Used to connect to EIB Device [%s:%d]",local_address.GetBuffer(),_connection->GetLocalPort());
 	}
 	else{
-		throw CEIBException(GeneralError,"Connection to EIB Interface failed.");
+		throw CEIBException(GeneralError,"Connection to EIBNet/IP Device failed.");
 	}
 }
 

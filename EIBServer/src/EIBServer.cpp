@@ -51,7 +51,7 @@ void CEIBServer::Close()
 	_clients_mgr->Close();
 	_clients_mgr->join();
 
-	LOG_INFO("Closing EIB Interface...");
+	LOG_INFO("Closing EIBNet/IP Device...");
 	_interface->Close();
 
 	CTime t;
@@ -115,14 +115,14 @@ bool CEIBServer::Init()
 	END_CATCH
 
 	START_TRY
-		//initialize eib interface
+		//initialize EIBNet/IP device connection
 		_interface->Init();
-		LOG_INFO("Initializing EIB Interface...Successful. (Mode: %s)", _interface->GetModeString().GetBuffer());
+		LOG_INFO("Initializing EIBNet/IP Device...Successful. (Mode: %s)", _interface->GetModeString().GetBuffer());
 	END_TRY_START_CATCH(e)
-		LOG_ERROR("Initializing EIB Interface...Failed: %s",e.what());
+		LOG_ERROR("Initializing EIBNet/IP Device...Failed: %s",e.what());
 		return false;
 	END_TRY_START_CATCH_SOCKET(ex)
-		LOG_ERROR("Initializing EIB Interface...Failed: %s",ex.what());
+		LOG_ERROR("Initializing EIBNet/IP Device...Failed: %s",ex.what());
 		return false;
 	END_CATCH
 

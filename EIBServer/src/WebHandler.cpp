@@ -840,7 +840,7 @@ bool CWebHandler::SendEIBCommand(const CString& addr, unsigned char *apci, unsig
 		CEIBInterface& iface = CEIBServer::GetInstance().GetEIBInterface();
 
 		if(iface.GetMode() == UNDEFINED_MODE){
-			err += "EIB Interface is not initialized";
+			err += "EIBNet/IP Device is not initialized";
 			return false;
 		}
 
