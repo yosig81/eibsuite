@@ -383,12 +383,16 @@ int TCPSocket::Recv(void *buffer, int bufferLen,int time_out){
 
 TCPServerSocket::TCPServerSocket(int localPort, int queueLen)
      : Socket(SOCK_STREAM, IPPROTO_TCP) {
+  int optval = 1;
+  setsockopt(sockDesc, SOL_SOCKET, SO_REUSEADDR, (raw_type *)&optval, sizeof(optval));
   SetLocalPort(localPort);
   SetListen(queueLen);
 }
 
 TCPServerSocket::TCPServerSocket(const CString &localAddress, int localPort, int queueLen)
      : Socket(SOCK_STREAM, IPPROTO_TCP) {
+  int optval = 1;
+  setsockopt(sockDesc, SOL_SOCKET, SO_REUSEADDR, (raw_type *)&optval, sizeof(optval));
   SetLocalAddressAndPort(localAddress, localPort);
   SetListen(queueLen);
 }

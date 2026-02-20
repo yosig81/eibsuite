@@ -12,7 +12,12 @@ ifdef GTEST_BREW
 else
   GTEST_ROOT ?= $(HOME)/Projects/googletest-v1.17.0
   GTEST_INCLUDE ?= $(GTEST_ROOT)/googletest/include
-  GTEST_LIB_DIR ?= $(GTEST_ROOT)/manual-arm64
+  UNAME_S := $(shell uname -s)
+  ifeq ($(UNAME_S),Darwin)
+    GTEST_LIB_DIR ?= $(GTEST_ROOT)/manual-arm64
+  else
+    GTEST_LIB_DIR ?= $(GTEST_ROOT)/build/lib
+  endif
 endif
 
 # Platform-specific rpath: @loader_path on macOS, $ORIGIN on Linux
@@ -25,7 +30,7 @@ endif
 
 CPPFLAGS := -I../include -I../include/xml -I../../jtc/include -I/usr/include -I$(GTEST_INCLUDE)
 CXXFLAGS := -O0 -g3 -Wall -fmessage-length=0 -std=c++17
-LDFLAGS := -L../linux -L../../jtc/linux -L$(GTEST_LIB_DIR) -Wl,-rpath,'$(RPATH_ORIGIN)/../linux' -Wl,-rpath,'$(RPATH_ORIGIN)/../../jtc/linux'
+LDFLAGS := -L../linux -L../../jtc/linux -L$(GTEST_LIB_DIR) -Wl,-rpath,'$(RPATH_ORIGIN)/../linux' -Wl,-rpath,'$(RPATH_ORIGIN)/../../jtc/linux' -Wl,-rpath,'$(GTEST_LIB_DIR)'
 LIBS := -lEIBStdLib -ljtc -lgtest -lgtest_main -lpthread
 
 # Directories

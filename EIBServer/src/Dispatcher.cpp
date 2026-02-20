@@ -45,7 +45,7 @@ void CDispatcher::Init()
 	catch (SocketException& e)
 	{
 		LOG_ERROR("Socket Error: %s", e.what());
-		throw CEIBException(SocketError,"Error in port [%d] binding: %s",GetServerPort(),e.what());
+		throw CEIBException(SocketError,"Error in port [%d] binding: %s",conf.GetWEBServerPort(),e.what());
 		return;
 	}
 }
@@ -53,6 +53,12 @@ void CDispatcher::Init()
 void CDispatcher::run()
 {
 	JTCSynchronized sync(*this);
+
+	if (_server_sock == NULL) {
+		LOG_ERROR("[Dispatcher] No listening socket -- web interface disabled.");
+		return;
+	}
+
 	unsigned int counter = 0;
 
 	//start the handlers

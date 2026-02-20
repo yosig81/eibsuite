@@ -327,3 +327,32 @@ TEST_F(SocketNetworkTest, LocalAddress_ReturnsForKnownLoopbackInterface) {
 
     GTEST_SKIP() << "No known loopback interface alias matched on this host.";
 }
+
+TEST_F(SocketNetworkTest, TcpServerSocket_ReuseAddrAllowsImmediateRebind) {
+    // Verify that SO_REUSEADDR is set on TCPServerSocket so that a port
+    // in TIME_WAIT from a previous process can be rebound immediately.
+    try {
+        int port = 0;
+        {
+            TCPServerSocket first(0);
+            port = first.GetLocalPort();
+            ASSERT_GT(port, 0);
+
+            // Connect a client so the port enters TIME_WAIT on close
+            TCPSocket client("127.0.0.1", static_cast<unsigned short>(port));
+            std::unique_ptr<TCPSocket> accepted(first.Accept(1000));
+            ASSERT_NE(nullptr, accepted);
+        }
+        // first is now closed -- port may be in TIME_WAIT.
+        // Without SO_REUSEADDR the following bind would fail.
+        EXPECT_NO_THROW({
+            TCPServerSocket second(port);
+            EXPECT_EQ(port, second.GetLocalPort());
+        });
+    } catch (const SocketException& ex) {
+        if (IsPermissionRestricted(ex)) {
+            GTEST_SKIP() << "Socket operations restricted in this environment: " << ex.what();
+        }
+        throw;
+    }
+}
