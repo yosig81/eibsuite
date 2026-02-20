@@ -4,6 +4,9 @@
 # Compiler and flags
 CPP_COMPILER ?= g++
 
+# Platform detection (used for gtest lib path and rpath)
+UNAME_S := $(shell uname -s)
+
 # Google Test: try Homebrew first, then user-built location
 GTEST_BREW := $(shell brew --prefix googletest 2>/dev/null)
 ifdef GTEST_BREW
@@ -12,7 +15,11 @@ ifdef GTEST_BREW
 else
   GTEST_ROOT ?= $(HOME)/Projects/googletest-v1.17.0
   GTEST_INCLUDE ?= $(GTEST_ROOT)/googletest/include
-  GTEST_LIB_DIR ?= $(GTEST_ROOT)/manual-arm64
+  ifeq ($(UNAME_S),Darwin)
+    GTEST_LIB_DIR ?= $(GTEST_ROOT)/manual-arm64
+  else
+    GTEST_LIB_DIR ?= $(GTEST_ROOT)/build/lib
+  endif
 endif
 
 # Include paths for EIBServer, EIBStdLib, and jtc headers
@@ -23,7 +30,6 @@ CPPFLAGS := -I../include -I../include/conf \
 CXXFLAGS := -O0 -g3 -Wall -fmessage-length=0 -std=c++17 -Wno-dynamic-exception-spec
 
 # Platform-specific rpath: @loader_path on macOS, $ORIGIN on Linux
-UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
   RPATH_ORIGIN := @loader_path
 else
@@ -32,7 +38,8 @@ endif
 
 LDFLAGS := -L../../EIBStdLib/linux -L../../jtc/linux -L$(GTEST_LIB_DIR) \
            -Wl,-rpath,'$(RPATH_ORIGIN)/../../EIBStdLib/linux' \
-           -Wl,-rpath,'$(RPATH_ORIGIN)/../../jtc/linux'
+           -Wl,-rpath,'$(RPATH_ORIGIN)/../../jtc/linux' \
+           -Wl,-rpath,'$(GTEST_LIB_DIR)'
 LIBS := -lEIBStdLib -ljtc -lgtest -lgtest_main -lpthread
 
 # EIBServer source files to compile (only the ones under test -- no Main.cpp, no EIBServer.cpp)
