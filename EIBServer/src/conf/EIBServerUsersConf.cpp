@@ -125,9 +125,10 @@ void CEIBServerUsersConf::GetConnectedClients()
 			client._priviliges |= USER_POLICY_READ_ACCESS;
 		if(it->second.IsWritePolicyAllowed())
 			client._priviliges |= USER_POLICY_WRITE_ACCESS;
-		if(it->second.IsConsoleAccessAllowed())
-			client._priviliges |= USER_POLICY_CONSOLE_ACCESS;
-
+		if(it->second.IsWebAccessAllowed())
+			client._priviliges |= USER_POLICY_WEB_ACCESS;
+		if(it->second.IsAdminAccessAllowed())
+			client._priviliges |= USER_POLICY_ADMIN_ACCESS;
 		client._sa_mask = it->second.GetSrcMask();
 		client._da_mask = it->second.GetDstMask();
 

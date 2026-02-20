@@ -32,6 +32,11 @@ install:
 	@mkdir -p $(INSTALL_DIR)/Images/
 	@$(CP) ../Images/error.jpg $(INSTALL_DIR)/Images/
 	@$(CP) ../Images/favicon.ico $(INSTALL_DIR)/Images/
+	@mkdir -p $(INSTALL_DIR)/www/css/ $(INSTALL_DIR)/www/js/pages/
+	@$(CP) ../www/index.html $(INSTALL_DIR)/www/
+	@$(CP) ../www/css/style.css $(INSTALL_DIR)/www/css/
+	@$(CP) ../www/js/app.js $(INSTALL_DIR)/www/js/
+	@$(CP) ../www/js/pages/*.js $(INSTALL_DIR)/www/js/pages/
 
 clean:
 	-$(RM) $(OBJS) $(OBJS:%.o=%.d) $(OUT_EXE)

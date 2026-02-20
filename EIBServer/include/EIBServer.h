@@ -15,12 +15,13 @@
 #include "LogFile.h"
 #include "UsersDB.h"
 #include "ClientsMgr.h"
-#include "ConsoleManager.h"
 #include "SingletonValidation.h"
 #include "StatsDB.h"
 #include "EIBInterface.h"
 #include "Handle.h"
 #include "DummyThread.h"
+#include "Dispatcher.h"
+#include "CommandScheduler.h"
 
 #ifdef WIN32
 #include "XGetopt.h"
@@ -36,8 +37,9 @@
 
 #define EIB_SERVER_PROCESS_NAME "EIBserver"
 
-typedef JTCHandleT<CConsoleManager> CConsoleManagerHandle;
 typedef JTCHandleT<CClientsMgr> CClientsMgrHandle;
+typedef JTCHandleT<CDispatcher> CDispatcherHandle;
+typedef JTCHandleT<CCommandScheduler> CCommandSchedulerHandle;
 
 //some useful MACROS
 #ifdef WIN32
@@ -134,6 +136,7 @@ public:
 		Returns reference to EIB Interface
 	*/
 	inline CEIBInterface& GetEIBInterface() { return *_interface;}
+	inline CCommandScheduler& GetScheduler() { return *_scheduler;}
 
 	void ReloadConfiguration();
 	void InteractiveConf();
@@ -141,7 +144,8 @@ public:
 private:
 	static CEIBServer* _instance;
 	CClientsMgrHandle _clients_mgr;
-	CConsoleManagerHandle _console_mgr;
+	CDispatcherHandle _dispatcher;
+	CCommandSchedulerHandle _scheduler;
 	CEIBInterface* _interface;
 	CUsersDB _users_db;
 	CServerConfig _conf;

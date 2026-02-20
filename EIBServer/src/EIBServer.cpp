@@ -7,12 +7,14 @@ CEIBServer* CEIBServer::_instance = NULL;
 CEIBServer::CEIBServer():
 CSingletonProcess(EIB_SERVER_PROCESS_NAME),
 _clients_mgr(NULL),
-_console_mgr(NULL),
+_dispatcher(NULL),
+_scheduler(NULL),
 _interface(NULL)
 {
 	_interface = new CEIBInterface();
-	_console_mgr = new CConsoleManager();
 	_clients_mgr = new CClientsMgr();
+	_dispatcher = new CDispatcher();
+	_scheduler = new CCommandScheduler();
 }
 
 CEIBServer::~CEIBServer()
@@ -29,15 +31,20 @@ void CEIBServer::Close()
 		//save configuration to file
 		_conf.Save(DEFAULT_CONF_FILE_NAME);
 	}
-	
+
 	LOG_INFO("Saving Users database...");
 	//save users database
 	_users_db.Save();
 
-	//close console manager
-	LOG_INFO("Closing Console manager...");
-	_console_mgr->Close();
-	_console_mgr->join();
+	//close web interface
+	LOG_INFO("Closing WEB Interface...");
+	_dispatcher->Close();
+	_dispatcher->join();
+
+	//close command scheduler
+	LOG_INFO("Closing Command Scheduler...");
+	_scheduler->Close();
+	_scheduler->join();
 
 	//close clients manager
 	LOG_INFO("Closing Clients manager...");
@@ -46,7 +53,7 @@ void CEIBServer::Close()
 
 	LOG_INFO("Closing EIB Interface...");
 	_interface->Close();
-	
+
 	CTime t;
 	//indicate user
 	LOG_INFO("EIB Server closed on %s",t.Format().GetBuffer());
@@ -72,8 +79,10 @@ void CEIBServer::Start()
 
 	//start the clients manager
 	_clients_mgr->start();
-	//start console manager
-	_console_mgr->start();
+	//start web dispatcher
+	_dispatcher->start();
+	//start command scheduler
+	_scheduler->start();
 
 	CTime t;
 	CString time_str = t.Format();
@@ -94,7 +103,7 @@ bool CEIBServer::Init()
 		cerr << "Initializing Log manager...Failed: " << e.what() << endl;
 		return false;
 	END_CATCH
-	
+
 	START_TRY
 		//load configuration from file
 		_conf.Load(DEFAULT_CONF_FILE_NAME);
@@ -151,11 +160,12 @@ bool CEIBServer::Init()
 	END_CATCH
 
 	START_TRY
-		_console_mgr->Init(_conf.GetConsoleManagerPort());
-		LOG_INFO("Initializing Console manager...Successful.");
+		_dispatcher->Init();
+		LOG_INFO("Initializing WEB Interface...Successful.");
+		LOG_INFO("WEB Server listening on port [%d]", _conf.GetWEBServerPort());
 	END_TRY_START_CATCH(e)
-		LOG_ERROR("Initializing Console manager...Failed: %s",e.what());
-		return false;
+		LOG_ERROR("Initializing WEB Interface...Failed: %s", e.what());
+		// Non-fatal: EIBServer can run without web UI
 	END_CATCH
 
 	return res;
@@ -210,10 +220,6 @@ void CEIBServer::InteractiveConf()
 	if(ConsoleCLI::Getint("Max concurrent clients connected to EIBServer?",ival, _conf.GetMaxConcurrentClients())){
 		_conf.SetMaxConcurrentClients(ival);
 	}
-	if(ConsoleCLI::Getint("EIB Console listening port?",ival, _conf.GetConsoleManagerPort())){
-		_conf.SetConsoleManagerPort(ival);
-	}
-
 	map<int,CString> map1;
 	map1.insert(map1.end(),pair<int,CString>(LOG_LEVEL_ERROR,"ERROR"));
 	map1.insert(map1.end(),pair<int,CString>(LOG_LEVEL_INFO,"INFO"));
@@ -254,6 +260,26 @@ void CEIBServer::InteractiveConf()
 		_conf.SetEibLocalInterface(sval);
 	}
 #endif
+
+	// Web server configuration
+	if(ConsoleCLI::Getint("WEB Server listening port?",ival, _conf.GetWEBServerPort())){
+		_conf.SetWEBServerPort(ival);
+	}
+#ifdef WIN32
+	if(ConsoleCLI::GetStrOption("Choose Interface to listen for web requests (Browser)", map2, sval, CString(_conf.GetWEBListenInterface()))){
+		_conf.SetWEBListenInterface(sval.ToInt());
+	}
+#else
+	if(ConsoleCLI::GetStrOption("Choose Interface to listen for web requests (Browser)", map2, sval, _conf.GetWEBListenInterface())){
+		_conf.SetWEBListenInterface(sval);
+	}
+#endif
+	if(ConsoleCLI::GetCString("WWW root directory?",sval, _conf.GetWwwRoot())){
+		_conf.SetWwwRoot(sval);
+	}
+	if(ConsoleCLI::GetCString("Images folder?",sval, _conf.GetImagesFolder())){
+		_conf.SetImagesFolder(sval);
+	}
 
 	_conf.SetLoadOK(true);
 	LOG_SCREEN("Saving configuration to %s...", DEFAULT_CONF_FILE_NAME);

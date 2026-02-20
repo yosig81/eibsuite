@@ -12,7 +12,8 @@
 #define USER_POLICY_NONE			0x0
 #define USER_POLICY_READ_ACCESS		0x1
 #define USER_POLICY_WRITE_ACCESS	0x2
-#define USER_POLICY_CONSOLE_ACCESS	0x4
+#define USER_POLICY_WEB_ACCESS		0x4
+#define USER_POLICY_ADMIN_ACCESS	0x8
 
 #define USER_PASSWORD_PARAM_NAME "PASSWORD"
 #define USER_PRIVILIGES_PARAM_NAME "PRIVILIGES"
@@ -34,10 +35,12 @@ public:
 
 	bool IsReadPolicyAllowed() const;
 	bool IsWritePolicyAllowed() const;
-	bool IsConsoleAccessAllowed() const { return (_priviliges & USER_POLICY_CONSOLE_ACCESS ) != 0; }
+	bool IsWebAccessAllowed() const { return (_priviliges & USER_POLICY_WEB_ACCESS) != 0; }
+	bool IsAdminAccessAllowed() const { return (_priviliges & USER_POLICY_ADMIN_ACCESS) != 0; }
 
 	const CString& GetName() const;
 	const CString& GetPassword() const;
+	unsigned int GetPriviliges() const { return _priviliges; }
 	unsigned short GetSrcMask() const { return _filter.GetSrcMask(); }
 	unsigned short GetDstMask() const { return _filter.GetDstMask(); }
 
@@ -74,7 +77,9 @@ public:
 	virtual void Init(const CString& file_name);
 	virtual void Print() const;
 	const map<CString,CUser>& GetUsersList() const { return _data;}
-	
+	bool AuthenticateUser(const CString& user_name, const CString& password, CUser& user);
+	int GetNumOfUsers() const { return _data.size(); }
+
 	bool Validate();
 
 	void InteractiveConf();

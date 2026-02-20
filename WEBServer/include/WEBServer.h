@@ -11,6 +11,7 @@
 #include "Dispatcher.h"
 #include "UsersDB.h"
 #include "WEBCollector.h"
+#include "ConsoleClient.h"
 
 using namespace std;
 
@@ -68,8 +69,7 @@ public:
 	inline CDispatcherHandle& GetDispatcher() { return _dispatcher;}
 	inline CUsersDB& GetUsersDB() { return _users;}
 	inline CWebCollectorHandle& GetCollector() { return _collector; }
-
-	//bool GetHisotryFromEIB(CDataBuffer& buffer);
+	inline CConsoleClient& GetConsoleClient() { return _console_client; }
 
 	void InteractiveConf();
 
@@ -81,6 +81,7 @@ private:
 	CUsersDB _users;
 	CString _domain;
 	CWebCollectorHandle _collector;
+	CConsoleClient _console_client;
 };
 
 #endif

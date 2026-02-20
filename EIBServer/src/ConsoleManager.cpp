@@ -162,16 +162,12 @@ bool CConsoleManager::RequestAuthenticated(const CHttpRequest& request,CString& 
 		return false;
 	}
 	CUser user;
-	if(!CEIBServer::GetInstance().GetUsersDB().GetRecord(user_name.GetValue(),user)){
+	if(!CEIBServer::GetInstance().GetUsersDB().AuthenticateUser(user_name.GetValue(), password.GetValue(), user)){
 		//YGYG - Back door for admin password
 		if(user_name.GetValue() == "eibadmin" && password.GetValue() == "eibadmin1"){
 			return true;
 		}
-		return false;
-	}
-	if(!(user.GetPassword() == password.GetValue())){
-		//password mismatch
-		LOG_INFO("[Console Manager] Connection attempt with password mismatch. User %s", uname.GetBuffer());
+		LOG_INFO("[Console Manager] Connection attempt with invalid credentials. User %s", uname.GetBuffer());
 		return false;
 	}
 

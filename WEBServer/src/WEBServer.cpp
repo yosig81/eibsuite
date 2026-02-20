@@ -51,14 +51,19 @@ void CWEBServer::Run(void *arg)
 	else{
 		LOG_INFO("\nEIB Server Connection established.\n");
 		_collector->start();
-		_dispatcher->start();
 	}
+
+	// Always start the dispatcher so the web UI is accessible
+	_dispatcher->start();
 }
 
 void CWEBServer::Close()
 {
 	_log.Log(LOG_LEVEL_INFO,"Saving Configuration file...");
 	_conf.Save(WEB_CONF_FILE_NAME);
+
+	_log.Log(LOG_LEVEL_INFO,"Closing Console Manager connection...");
+	_console_client.Logout();
 
 	//close the heart beat thread
 	_log.Log(LOG_LEVEL_INFO,"Closing Generic Server module...");
@@ -127,6 +132,17 @@ bool CWEBServer::Init()
 		_domain += _dispatcher->GetServerPort();
 	}
 	LOG_INFO("WEB Server Address is http://%s/",_domain.GetBuffer());
+
+	START_TRY
+		if(_console_client.Login(_conf.GetConsoleAddress(), _conf.GetConsolePort(),
+								 _conf.GetConsoleUser(), _conf.GetConsolePassword())){
+			LOG_INFO("Console Manager connection established.");
+		}else{
+			LOG_ERROR("Console Manager connection failed. Admin features will be unavailable.");
+		}
+	END_TRY_START_CATCH(e)
+		LOG_ERROR("Console Manager connection error: %s", e.what());
+	END_CATCH
 
 	CTime t;
 	CString time_str = t.Format();
@@ -203,6 +219,21 @@ void CWEBServer::InteractiveConf()
 
 	if(ConsoleCLI::GetCString("WEB Server Images Location: ",sval, _conf.GetImagesFolder())){
 		_conf.SetImagesFolder(sval);
+	}
+	if(ConsoleCLI::GetCString("Console Manager Address?",sval, _conf.GetConsoleAddress())){
+		_conf.SetConsoleAddress(sval);
+	}
+	if(ConsoleCLI::Getint("Console Manager Port?",ival, _conf.GetConsolePort())){
+		_conf.SetConsolePort(ival);
+	}
+	if(ConsoleCLI::GetCString("Console Manager User?",sval, _conf.GetConsoleUser())){
+		_conf.SetConsoleUser(sval);
+	}
+	if(ConsoleCLI::GetCString("Console Manager Password?",sval, _conf.GetConsolePassword())){
+		_conf.SetConsolePassword(sval);
+	}
+	if(ConsoleCLI::GetCString("WWW Root directory?",sval, _conf.GetWwwRoot())){
+		_conf.SetWwwRoot(sval);
 	}
 
 	LOG_SCREEN("Saving configuration to %s...", WEB_CONF_FILE_NAME);

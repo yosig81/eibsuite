@@ -7,7 +7,7 @@
 #include "EmulatorDB.h"
 #include <queue>
 
-#define MAX_CONNS 1
+#define MAX_CONNS 2
 
 class CEmulatorInputHandler;
 class CRelayDataInputHandler;

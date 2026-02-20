@@ -37,6 +37,14 @@ $(OUT_EXE): $(OBJS)
 # Other Targets
 install:
 	@$(CP) $(OUT_EXE) $(INSTALL_DIR)
+	@mkdir -p $(INSTALL_DIR)/www/css/
+	@mkdir -p $(INSTALL_DIR)/www/js/pages/
+	@cp ../www/index.html $(INSTALL_DIR)/www/
+	@cp ../www/css/style.css $(INSTALL_DIR)/www/css/
+	@cp ../www/js/app.js $(INSTALL_DIR)/www/js/
+	@cp ../www/js/pages/*.js $(INSTALL_DIR)/www/js/pages/
+	@mkdir -p $(INSTALL_DIR)/Images/
+	@cp ../Images/* $(INSTALL_DIR)/Images/
 
 clean:
 	-$(RM) $(OBJS) $(OBJS:%.o=%.d) $(OUT_EXE)

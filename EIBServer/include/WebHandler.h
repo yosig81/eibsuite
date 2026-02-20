@@ -9,9 +9,9 @@
 #include "HttpParser.h"
 #include "Digest.h"
 #include "StatsDB.h"
-#include "ContentGenerator.h"
 #include "UsersDB.h"
 #include "XmlJsonUtil.h"
+#include "Html.h"
 
 #define MAX_HTTP_REQUEST_SIZE 8192
 
@@ -36,14 +36,9 @@ public:
 
 private:
 	void HandleRequest(TCPSocket* sock, char* buffer,CHttpReply& reply);
-	void GenerateFirstContent(CString& content);
 	void InitReply(CHttpReply& reply);
-	void GetHisotryFromEIB(CStatsDB& db,CString& err);
 
-	void CreateContent(CHttpRequest& request, CHttpReply& reply, const CUser& user);
 	bool SendEIBCommand(const CString& addr, unsigned char *apci, unsigned char apci_len, CString& err);
-
-	inline const CString& GetCurrentDomain() const;
 	bool GetByteArrayFromHexString(const CString& str, unsigned char *val, unsigned char &val_len);
 
 	void HandleFavoritsIconRequest(CHttpReply& reply);
@@ -62,7 +57,7 @@ private:
 	void ApiSessionCheck(CHttpRequest& request, CHttpReply& reply);
 	bool ApiAuthenticate(CHttpRequest& request, CUser& user);
 
-	// API: Admin endpoints (proxy to ConsoleManager)
+	// API: Admin endpoints (direct access to conf classes)
 	void ApiGetUsers(CHttpReply& reply);
 	void ApiSetUsers(CHttpRequest& request, CHttpReply& reply);
 	void ApiGetInterface(CHttpReply& reply);
@@ -71,7 +66,7 @@ private:
 	void ApiGetBusMonAddresses(CHttpReply& reply);
 	void ApiBusMonSendCmd(CHttpRequest& request, CHttpReply& reply);
 
-	// API: Data endpoints (from WEBCollector/StatsDB)
+	// API: Data endpoints (direct StatsDB access)
 	void ApiGetGlobalHistory(CHttpReply& reply);
 	void ApiGetFunctionHistory(const CString& address, CHttpReply& reply);
 	void ApiSendEibCommand(CHttpRequest& request, CHttpReply& reply);

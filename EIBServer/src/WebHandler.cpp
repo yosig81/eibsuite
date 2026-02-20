@@ -1,9 +1,13 @@
 #include "WebHandler.h"
 #include "Html.h"
-#include "WEBServer.h"
+#include "EIBServer.h"
 #include "CTime.h"
 #include "URLEncoding.h"
 #include "Utils.h"
+#include "conf/EIBServerUsersConf.h"
+#include "conf/EIBInterfaceConf.h"
+#include "conf/EIBBusMonConf.h"
+#include "CommandScheduler.h"
 #include <cstdlib>
 #include <ctime>
 
@@ -57,8 +61,7 @@ void CWebHandler::run()
 		START_TRY
 			HandleRequest(sock, buffer,reply);
 		END_TRY_START_CATCH(e)
-			//send error page to user
-			CContentGenerator::Generate_Error_Line(reply_buf,e.what());
+			SetJsonError(reply, e.what());
 			LOG_ERROR("[WEB Handler] %s", e.what());
 		END_CATCH
 
@@ -96,18 +99,16 @@ void CWebHandler::HandleRequest(TCPSocket* sock, char* buffer,CHttpReply& reply)
 	START_TRY
 		len = sock->Recv(buffer,MAX_HTTP_REQUEST_SIZE,INFINITE);
 	END_TRY_START_CATCH_SOCKET(e)
-		CWEBServer::GetInstance().GetLog().Log(LOG_LEVEL_ERROR,"Socket exception in WEBHandler. Code: %d",e.GetErrorCode());
+		CEIBServer::GetInstance().GetLog().Log(LOG_LEVEL_ERROR,"Socket exception in WEBHandler. Code: %d",e.GetErrorCode());
 	END_CATCH
 
 	if (len > MAX_HTTP_REQUEST_SIZE || len == 0){
-		//log error and return 404 to client
 		return;
 	}
 
 	CHttpRequest request;
 	CHttpParser parser(request,buffer,len, *sock);
 	if (!parser.IsLegalRequest()){
-		//return error to client
 		throw CEIBException(GeneralError,"Error in request parsing");
 	}
 
@@ -121,9 +122,8 @@ void CWebHandler::HandleRequest(TCPSocket* sock, char* buffer,CHttpReply& reply)
 
 	// --- SPA: serve index.html for root ---
 	if (uri == "/" && request.GetNumParams() == 0) {
-		if (HandleStaticFile("/index.html", reply)) {
-			return;
-		}
+		HandleStaticFile("/index.html", reply);
+		return;
 	}
 
 	// --- Static file serving from www/ ---
@@ -135,55 +135,21 @@ void CWebHandler::HandleRequest(TCPSocket* sock, char* buffer,CHttpReply& reply)
 		}
 	}
 
-	// --- Legacy path: Basic Auth required ---
-	CHttpHeader auth;
-	if(!request.GetHeader(AUTHORIZATION_HEADER,auth)){
-		// For non-API, non-static requests, require Basic Auth
-		reply.AddHeader(AUTHENTICATION_HEADER,"Basic");
-		reply.SetStatusCode(STATUS_NOT_AUTHORIZED);
-		return;
-	}
-
-	CDigest digest(ALGORITHM_BASE64);
-	int index = auth.GetValue().Find("Basic ");
-	CString cipher = auth.GetValue().SubString(index + 6,auth.GetValue().GetLength() - index - 6);
-	CString clear;
-	if(!digest.Decode(cipher, clear)){
-		reply.AddHeader(AUTHENTICATION_HEADER,"Basic");
-		reply.SetStatusCode(STATUS_NOT_AUTHORIZED);
-		return;
-	}
-
-	//user name and password
-	CHttpHeader login(clear);
-
-	//find is user exist and password valid
-	CUser user;
-	if (!CWEBServer::GetInstance().GetUsersDB().AuthenticateUser(login.GetName(),login.GetValue(),user)){
-		reply.AddHeader(AUTHENTICATION_HEADER,"Basic");
-		reply.SetStatusCode(STATUS_NOT_AUTHORIZED);
-		return;
-	}
-
-	reply.SetContentType(CT_TEXT_HTML);
-	reply.SetStatusCode(STATUS_OK);
-	reply.SetVersion(HTTP_1_0);
-
-	if(request.GetRequestURI() == "/favicon.ico" && request.GetNumParams() == 0){
+	// --- favicon.ico ---
+	if(uri == "/favicon.ico" && request.GetNumParams() == 0){
 		HandleFavoritsIconRequest(reply);
 		return;
 	}
 
-	//Check if the request if for an image
-	if(request.GetRequestURI().EndsWith(".jpg") || request.GetRequestURI().EndsWith(".png") ||
-	   request.GetRequestURI().EndsWith(".jpeg")	)
+	// --- Image requests ---
+	if(uri.EndsWith(".jpg") || uri.EndsWith(".png") || uri.EndsWith(".jpeg"))
 	{
-		HandleImageRequest(request.GetRequestURI().SubString(1, request.GetRequestURI().GetLength() - 1), reply);
+		HandleImageRequest(uri.SubString(1, uri.GetLength() - 1), reply);
 		return;
 	}
 
-	//logic of parameters (legacy ?cmd= handling)
-	CreateContent(request,reply, user);
+	// --- Redirect everything else to SPA ---
+	reply.Redirect("/");
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -215,7 +181,7 @@ bool CWebHandler::HandleApiRequest(CHttpRequest& request, CHttpReply& reply)
 		return true;
 	}
 
-	// Data endpoints (existing WEB features)
+	// Data endpoints
 	if (uri == "/api/history") {
 		if (!user.IsReadPolicyAllowed()) {
 			SetJsonError(reply, "Insufficient privileges", STATUS_FORBIDDEN);
@@ -250,24 +216,36 @@ bool CWebHandler::HandleApiRequest(CHttpRequest& request, CHttpReply& reply)
 		return true;
 	}
 
-	// Admin endpoints (proxy to ConsoleManager)
+	// Admin endpoints (require authentication + admin privilege for mutations)
 	if (uri == "/api/admin/users" && request.GetMethod() == GET_M) {
 		ApiGetUsers(reply);
 		return true;
 	}
 	if (uri == "/api/admin/users" && request.GetMethod() == POST_M) {
+		if (!user.IsAdminAccessAllowed()) {
+			SetJsonError(reply, "Admin privileges required", STATUS_FORBIDDEN);
+			return true;
+		}
 		ApiSetUsers(request, reply);
 		return true;
 	}
-	if (uri == "/api/admin/interface") {
+	if (uri == "/api/admin/interface" && request.GetMethod() == GET_M) {
 		ApiGetInterface(reply);
 		return true;
 	}
 	if (uri == "/api/admin/interface/start") {
+		if (!user.IsAdminAccessAllowed()) {
+			SetJsonError(reply, "Admin privileges required", STATUS_FORBIDDEN);
+			return true;
+		}
 		ApiInterfaceStart(reply);
 		return true;
 	}
 	if (uri == "/api/admin/interface/stop") {
+		if (!user.IsAdminAccessAllowed()) {
+			SetJsonError(reply, "Admin privileges required", STATUS_FORBIDDEN);
+			return true;
+		}
 		ApiInterfaceStop(reply);
 		return true;
 	}
@@ -276,6 +254,10 @@ bool CWebHandler::HandleApiRequest(CHttpRequest& request, CHttpReply& reply)
 		return true;
 	}
 	if (uri == "/api/admin/busmon/send") {
+		if (!user.IsAdminAccessAllowed()) {
+			SetJsonError(reply, "Admin privileges required", STATUS_FORBIDDEN);
+			return true;
+		}
 		ApiBusMonSendCmd(request, reply);
 		return true;
 	}
@@ -314,7 +296,6 @@ CString CWebHandler::GetSessionCookie(CHttpRequest& request)
 
 void CWebHandler::ApiLogin(CHttpRequest& request, CHttpReply& reply)
 {
-	// Parse user/pass from JSON body or form params
 	CString body_str((const char*)request.GetContent().GetBuffer(), request.GetContent().GetLength());
 	CString user_name = GetJsonField(body_str, "user");
 	CString password = GetJsonField(body_str, "pass");
@@ -325,8 +306,13 @@ void CWebHandler::ApiLogin(CHttpRequest& request, CHttpReply& reply)
 	}
 
 	CUser user;
-	if (!CWEBServer::GetInstance().GetUsersDB().AuthenticateUser(user_name, password, user)) {
+	if (!CEIBServer::GetInstance().GetUsersDB().AuthenticateUser(user_name, password, user)) {
 		SetJsonError(reply, "Invalid credentials", STATUS_NOT_AUTHORIZED);
+		return;
+	}
+
+	if (!user.IsWebAccessAllowed()) {
+		SetJsonError(reply, "Web access not allowed for this user", STATUS_FORBIDDEN);
 		return;
 	}
 
@@ -356,6 +342,8 @@ void CWebHandler::ApiLogin(CHttpRequest& request, CHttpReply& reply)
 	json += user.IsReadPolicyAllowed() ? "true" : "false";
 	json += ",\"write\":";
 	json += user.IsWritePolicyAllowed() ? "true" : "false";
+	json += ",\"admin\":";
+	json += user.IsAdminAccessAllowed() ? "true" : "false";
 	json += "}";
 
 	SetJsonResponse(reply, json);
@@ -398,6 +386,8 @@ void CWebHandler::ApiSessionCheck(CHttpRequest& request, CHttpReply& reply)
 		json += user.IsReadPolicyAllowed() ? "true" : "false";
 		json += ",\"write\":";
 		json += user.IsWritePolicyAllowed() ? "true" : "false";
+		json += ",\"admin\":";
+		json += user.IsAdminAccessAllowed() ? "true" : "false";
 		json += "}";
 		SetJsonResponse(reply, json);
 	} else {
@@ -419,7 +409,7 @@ bool CWebHandler::ApiAuthenticate(CHttpRequest& request, CUser& user)
 				CString clear;
 				if (digest.Decode(cipher, clear)) {
 					CHttpHeader login(clear);
-					if (CWEBServer::GetInstance().GetUsersDB().AuthenticateUser(login.GetName(), login.GetValue(), user)) {
+					if (CEIBServer::GetInstance().GetUsersDB().AuthenticateUser(login.GetName(), login.GetValue(), user)) {
 						return true;
 					}
 				}
@@ -444,96 +434,100 @@ bool CWebHandler::ApiAuthenticate(CHttpRequest& request, CUser& user)
 	it->second.last_access = now;
 	CString user_name = it->second.user_name;
 
-	return CWEBServer::GetInstance().GetUsersDB().AuthenticateUser(user_name, CString(""), user) ||
-		   // If AuthenticateUser requires password, look up user directly
-		   (CWEBServer::GetInstance().GetUsersDB().GetUsersList().count(user_name) > 0);
+	// For session-based auth, we already validated the password at login time.
+	// Just look up the user record to get privileges.
+	return CEIBServer::GetInstance().GetUsersDB().GetRecord(user_name, user);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// Admin API endpoints (proxy to ConsoleManager)
+// Admin API endpoints (direct access to conf classes - no proxy needed)
 //////////////////////////////////////////////////////////////////////////////////////////////
 
 void CWebHandler::ApiGetUsers(CHttpReply& reply)
 {
-	CConsoleClient& cc = CWEBServer::GetInstance().GetConsoleClient();
-	if (!cc.IsLoggedIn()) {
-		SetJsonError(reply, "Console Manager not connected");
-		return;
-	}
-	CString xml = cc.SendGet("EIB_SERVER_GET_USERS_CONF_CMD");
-	CString json = CXmlJsonUtil::XmlToJson(xml);
-	SetJsonResponse(reply, json);
+	START_TRY
+		CEIBServerUsersConf conf;
+		conf.GetConnectedClients();
+		CDataBuffer xml_buf;
+		conf.ToXml(xml_buf);
+		CString xml((const char*)xml_buf.GetBuffer(), xml_buf.GetLength());
+		CString json = CXmlJsonUtil::XmlToJson(xml);
+		SetJsonResponse(reply, json);
+	END_TRY_START_CATCH(e)
+		SetJsonError(reply, e.what());
+	END_CATCH
 }
 
 void CWebHandler::ApiSetUsers(CHttpRequest& request, CHttpReply& reply)
 {
-	CConsoleClient& cc = CWEBServer::GetInstance().GetConsoleClient();
-	if (!cc.IsLoggedIn()) {
-		SetJsonError(reply, "Console Manager not connected");
-		return;
-	}
-	// The body should be XML (pass through from SPA which converts JSON to XML)
-	CString body((const char*)request.GetContent().GetBuffer(), request.GetContent().GetLength());
-	CString result = cc.SendPost("EIB_SERVER_SET_USERS_CONF_CMD", body);
-	SetJsonResponse(reply, CXmlJsonUtil::JsonOk());
+	START_TRY
+		CEIBServerUsersConf conf;
+		conf.FromXml(request.GetContent());
+		conf.SetConnectedClients();
+		SetJsonResponse(reply, CXmlJsonUtil::JsonOk());
+	END_TRY_START_CATCH(e)
+		SetJsonError(reply, e.what());
+	END_CATCH
 }
 
 void CWebHandler::ApiGetInterface(CHttpReply& reply)
 {
-	CConsoleClient& cc = CWEBServer::GetInstance().GetConsoleClient();
-	if (!cc.IsLoggedIn()) {
-		SetJsonError(reply, "Console Manager not connected");
-		return;
-	}
-	CString xml = cc.SendGet("EIB_SERVER_GET_INTERFACE_CONF_CMD");
-	CString json = CXmlJsonUtil::XmlToJson(xml);
-	SetJsonResponse(reply, json);
+	START_TRY
+		CEIBInterfaceConf conf;
+		CDataBuffer xml_buf;
+		conf.ToXml(xml_buf);
+		CString xml((const char*)xml_buf.GetBuffer(), xml_buf.GetLength());
+		CString json = CXmlJsonUtil::XmlToJson(xml);
+		SetJsonResponse(reply, json);
+	END_TRY_START_CATCH(e)
+		SetJsonError(reply, e.what());
+	END_CATCH
 }
 
 void CWebHandler::ApiInterfaceStart(CHttpReply& reply)
 {
-	CConsoleClient& cc = CWEBServer::GetInstance().GetConsoleClient();
-	if (!cc.IsLoggedIn()) {
-		SetJsonError(reply, "Console Manager not connected");
-		return;
-	}
-	CString xml = cc.SendGet("EIB_SERVER_INTERFACE_START_CMD");
-	CString json = CXmlJsonUtil::XmlToJson(xml);
-	SetJsonResponse(reply, json);
+	START_TRY
+		CEIBInterfaceConf conf;
+		CDataBuffer xml_buf;
+		conf.StartInterface(xml_buf);
+		CString xml((const char*)xml_buf.GetBuffer(), xml_buf.GetLength());
+		CString json = CXmlJsonUtil::XmlToJson(xml);
+		SetJsonResponse(reply, json);
+	END_TRY_START_CATCH(e)
+		SetJsonError(reply, e.what());
+	END_CATCH
 }
 
 void CWebHandler::ApiInterfaceStop(CHttpReply& reply)
 {
-	CConsoleClient& cc = CWEBServer::GetInstance().GetConsoleClient();
-	if (!cc.IsLoggedIn()) {
-		SetJsonError(reply, "Console Manager not connected");
-		return;
-	}
-	CString xml = cc.SendGet("EIB_SERVER_INTERFACE_STOP_CMD");
-	CString json = CXmlJsonUtil::XmlToJson(xml);
-	SetJsonResponse(reply, json);
+	START_TRY
+		CEIBInterfaceConf conf;
+		CDataBuffer xml_buf;
+		conf.StopInterface(xml_buf);
+		CString xml((const char*)xml_buf.GetBuffer(), xml_buf.GetLength());
+		CString json = CXmlJsonUtil::XmlToJson(xml);
+		SetJsonResponse(reply, json);
+	END_TRY_START_CATCH(e)
+		SetJsonError(reply, e.what());
+	END_CATCH
 }
 
 void CWebHandler::ApiGetBusMonAddresses(CHttpReply& reply)
 {
-	CConsoleClient& cc = CWEBServer::GetInstance().GetConsoleClient();
-	if (!cc.IsLoggedIn()) {
-		SetJsonError(reply, "Console Manager not connected");
-		return;
-	}
-	CString xml = cc.SendGet("EIB_BUS_MON_GET_ADDRESSES_CMD");
-	CString json = CXmlJsonUtil::XmlToJson(xml);
-	SetJsonResponse(reply, json);
+	START_TRY
+		CEIBBusMonAddrListConf conf;
+		CDataBuffer xml_buf;
+		conf.ToXml(xml_buf);
+		CString xml((const char*)xml_buf.GetBuffer(), xml_buf.GetLength());
+		CString json = CXmlJsonUtil::XmlToJson(xml);
+		SetJsonResponse(reply, json);
+	END_TRY_START_CATCH(e)
+		SetJsonError(reply, e.what());
+	END_CATCH
 }
 
 void CWebHandler::ApiBusMonSendCmd(CHttpRequest& request, CHttpReply& reply)
 {
-	CConsoleClient& cc = CWEBServer::GetInstance().GetConsoleClient();
-	if (!cc.IsLoggedIn()) {
-		SetJsonError(reply, "Console Manager not connected");
-		return;
-	}
-
 	CString body_str((const char*)request.GetContent().GetBuffer(), request.GetContent().GetLength());
 	CString addr = GetJsonField(body_str, "address");
 	CString val = GetJsonField(body_str, "value");
@@ -541,31 +535,28 @@ void CWebHandler::ApiBusMonSendCmd(CHttpRequest& request, CHttpReply& reply)
 
 	if (mode.GetLength() == 0) mode = "3"; // WAIT_FOR_CONFIRM default
 
-	CString form_body = "SND_DEST_ADDR=";
-	form_body += addr;
-	form_body += "&SND_VAL=";
-	form_body += val;
-	form_body += "&SND_MODE=";
-	form_body += mode;
+	// Build an HTTP request with form params as expected by SendCmdToAddr
+	CHttpRequest cmd_request;
+	cmd_request.AddParameter("SND_DEST_ADDR", addr);
+	cmd_request.AddParameter("SND_VAL", val);
+	cmd_request.AddParameter("SND_MODE", mode);
 
-	CString result = cc.SendPost("EIB_BUS_MON_SEND_CMD_TO_ADDR_CMD", form_body, true);
-	SetJsonResponse(reply, CXmlJsonUtil::JsonOk());
+	START_TRY
+		CEIBBusMonAddrListConf conf;
+		conf.SendCmdToAddr(cmd_request);
+		SetJsonResponse(reply, CXmlJsonUtil::JsonOk());
+	END_TRY_START_CATCH(e)
+		SetJsonError(reply, e.what());
+	END_CATCH
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// Data API endpoints
+// Data API endpoints (direct StatsDB access)
 //////////////////////////////////////////////////////////////////////////////////////////////
 
 void CWebHandler::ApiGetGlobalHistory(CHttpReply& reply)
 {
-	CStatsDB db;
-	CString err;
-	GetHisotryFromEIB(db, err);
-
-	if (err.GetLength() > 0) {
-		SetJsonError(reply, err);
-		return;
-	}
+	CStatsDB& db = CEIBServer::GetInstance().GetStatsDB();
 
 	// Build JSON from StatsDB
 	CString json = "{\"records\":[";
@@ -601,14 +592,7 @@ void CWebHandler::ApiGetGlobalHistory(CHttpReply& reply)
 
 void CWebHandler::ApiGetFunctionHistory(const CString& address, CHttpReply& reply)
 {
-	CStatsDB db;
-	CString err;
-	GetHisotryFromEIB(db, err);
-
-	if (err.GetLength() > 0) {
-		SetJsonError(reply, err);
-		return;
-	}
+	CStatsDB& db = CEIBServer::GetInstance().GetStatsDB();
 
 	CEibAddress addr(address);
 	CEIBObjectRecord rec;
@@ -687,7 +671,7 @@ void CWebHandler::ApiScheduleCommand(CHttpRequest& request, CHttpReply& reply)
 
 	CTime datetime(datetime_str.GetBuffer(), true);
 	CString err;
-	if (!CWEBServer::GetInstance().GetCollector()->AddScheduledCommand(
+	if (!CEIBServer::GetInstance().GetScheduler().AddScheduledCommand(
 			datetime, CEibAddress(addr), apci, apci_len, err)) {
 		SetJsonError(reply, err);
 		return;
@@ -702,7 +686,7 @@ void CWebHandler::ApiScheduleCommand(CHttpRequest& request, CHttpReply& reply)
 
 bool CWebHandler::HandleStaticFile(const CString& path, CHttpReply& reply)
 {
-	CString www_root = CWEBServer::GetInstance().GetConfig().GetWwwRoot();
+	CString www_root = CEIBServer::GetInstance().GetConfig().GetWwwRoot();
 	CString file_path = www_root + path;
 
 	// Security: prevent path traversal
@@ -785,7 +769,7 @@ CString CWebHandler::GetJsonField(const CString& json, const CString& field)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// Legacy code (preserved for backward compatibility)
+// Image and file serving
 //////////////////////////////////////////////////////////////////////////////////////////////
 
 void CWebHandler::HandleImageRequest(const CString& file_name, CHttpReply& reply)
@@ -804,7 +788,7 @@ void CWebHandler::HandleImageRequest(const CString& file_name, CHttpReply& reply
 	reply.SetStatusCode(STATUS_OK);
 	reply.AddHeader("Accept-Ranges","bytes");
 
-	const CString& file = CWEBServer::GetInstance().GetConfig().GetImagesFolder() + PATH_DELIM + file_name;
+	const CString& file = CEIBServer::GetInstance().GetConfig().GetImagesFolder() + PATH_DELIM + file_name;
 	int clen;
 	CWebHandler::FillRawFile(file, reply.GetContent(), clen);
 }
@@ -817,7 +801,7 @@ void CWebHandler::HandleFavoritsIconRequest(CHttpReply& reply)
 
 	reply.AddHeader("Accept-Ranges","bytes");
 
-	const CString& icon_file = CWEBServer::GetInstance().GetConfig().GetImagesFolder() + PATH_DELIM + "favicon.ico";
+	const CString& icon_file = CEIBServer::GetInstance().GetConfig().GetImagesFolder() + PATH_DELIM + "favicon.ico";
 	int clen;
 	CWebHandler::FillRawFile(icon_file, reply.GetContent(), clen);
 }
@@ -845,143 +829,44 @@ void CWebHandler::FillRawFile(const CString& file_name, CDataBuffer& buf, int& t
 	}
 }
 
-void CWebHandler::CreateContent(CHttpRequest& request,CHttpReply& reply, const CUser& user)
+//////////////////////////////////////////////////////////////////////////////////////////////
+// EIB command sending (direct via CEIBInterface)
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+bool CWebHandler::SendEIBCommand(const CString& addr, unsigned char *apci, unsigned char apci_len, CString& err)
 {
-	CHttpParameter p;
-	CString err;
+	START_TRY
+		CEibAddress dest_addr(URLEncoder::Decode(addr));
+		CEIBInterface& iface = CEIBServer::GetInstance().GetEIBInterface();
 
-	if(request.GetNumParams() == 0){
-		CContentGenerator gen;
-		gen.Page_Main(reply.GetContent(),GetCurrentDomain(),err);
-		return;
-	}
-
-	if(!request.GetParameter(PARAM_NAME_COMMAND,p)){
-		//redirect to main page
-		reply.Redirect("/");
-		return;
-	}
-
-	CStatsDB db;
-	CEIBObjectRecord rec;
-	CContentGenerator gen;
-	CHttpParameter p1,p2,p3;
-	unsigned char apci[MAX_EIB_VALUE_LEN];
-	unsigned char apci_len;
-	CString norm_param;
-	CEibAddress addr;
-	CTime datetime;
-
-	int cmd_type = p.GetValue().ToInt();
-	if((cmd_type == PARAM_COMMAND_VALUE_GLOBAL_HISTORY || cmd_type == PARAM_COMMAND_VALUE_FUNCTION_HISTORY) &&
-			!user.IsReadPolicyAllowed()){
-		goto unauthorized;
-	}
-	else if((cmd_type == PARAM_COMMAND_VALUE_SEND_COMMAND || cmd_type == PARAM_COMMAND_VALUE_SCHEDULE_COMMAND) &&
-			!user.IsWritePolicyAllowed()){
-		goto unauthorized;
-	}
-
-	switch (cmd_type)
-	{
-	case PARAM_COMMAND_VALUE_GLOBAL_HISTORY:
-		GetHisotryFromEIB(db,err);
-		gen.Page_HistoryGlobal(reply.GetContent(),db,err);
-		break;
-	case PARAM_COMMAND_VALUE_FUNCTION_HISTORY:
-		if(!CWEBServer::GetInstance().IsConnected()){
-			err += "Eib server is not connected";
+		if(iface.GetMode() == UNDEFINED_MODE){
+			err += "EIB Interface is not initialized";
+			return false;
 		}
 
-		if(!request.GetParameter(PARAM_NAME_FUNCTION,p1)){
-			gen.Form_HistoryPerFunction(reply.GetContent(),err);
-			return;
-		}
-		norm_param = URLEncoder::Decode(p1.GetValue());
-		addr = CEibAddress(norm_param);
-		GetHisotryFromEIB(db,err);
-		if(!db.GetRecord(addr,rec)){
-			err += "No Entries found for EIB Address: ";
-			err += norm_param;
-		}
-		gen.Page_HistoryPerFunction(reply.GetContent(),addr,rec,err);
-		break;
-	case PARAM_COMMAND_VALUE_SEND_COMMAND:
-		if(!CWEBServer::GetInstance().IsConnected()){
-			err += "Eib server is not connected";
-		}
-		if(!request.GetParameter(PARAM_NAME_FUNCTION_DEST_ADDRESS,p1)) {
-			gen.Form_SendCommandToEIB(reply.GetContent(),err);
-			return;
-		}
-		if(!request.GetParameter(PARAM_NAME_FUNCTION_APCI,p2)){
-			err += "Parameter \"";
-			err += PARAM_NAME_FUNCTION_APCI;
-			err += "\" is missing from request";
-			gen.Form_SendCommandToEIB(reply.GetContent(),err);
-			return;
-		}
-		if(!GetByteArrayFromHexString(p2.GetValue(),apci,apci_len)){
-			gen.Form_SendCommandToEIB(reply.GetContent(),err);
-			return;
-		}
-		if(!SendEIBCommand(p1.GetValue(),apci,apci_len,err)){
-			gen.Page_AckCommandToEIB(reply.GetContent(), false, err);
-			return;
-		}
-		gen.Page_AckCommandToEIB(reply.GetContent(), true, err);
-		break;
-	case PARAM_COMMAND_VALUE_SCHEDULE_COMMAND:
-		if(!CWEBServer::GetInstance().IsConnected()){
-			err += "Eib server is not connected";
-		}
+		CCemi_L_Data_Frame msg;
+		msg.SetMessageControl(L_DATA_REQ);
+		msg.SetAddilLength(0);
+		msg.SetCtrl1(0);
+		msg.SetCtrl2(6);
+		msg.SetPriority(PRIORITY_NORMAL);
+		msg.SetFrameFormatStandard();
+		msg.SetSrcAddress(CEibAddress());
+		msg.SetDestAddress(dest_addr);
+		msg.SetValue(apci, apci_len);
 
-		if(!request.GetParameter(PARAM_NAME_FUNCTION_DEST_ADDRESS,p1)) {
-			gen.Form_ScheduleCommand(reply.GetContent(),err);
-			return;
-		}
-		if(!request.GetParameter(PARAM_NAME_FUNCTION_APCI,p2)){
-			err += "Parameter \"";
-			err += PARAM_NAME_FUNCTION_APCI;
-			err += " missing from request";
-			gen.Form_ScheduleCommand(reply.GetContent(),err);
-			return;
-		}
-		if(!request.GetParameter(PARAM_NAME_FUNCTION_DATETIME,p3)){
-			err += "Parameter \"";
-			err += PARAM_NAME_FUNCTION_DATETIME;
-			err += " missing from request";
-			gen.Form_ScheduleCommand(reply.GetContent(),err);
-			return;
-		}
+		iface.GetOutputHandler()->Write(msg, NON_BLOCKING, NULL);
+	END_TRY_START_CATCH(e)
+		err += e.what();
+		return false;
+	END_CATCH
 
-		if(!GetByteArrayFromHexString(p2.GetValue(),apci, apci_len)){
-			err += "Illegal unsigned short representation";
-			gen.Form_ScheduleCommand(reply.GetContent(),err);
-			return;
-		}
-		norm_param = URLEncoder::Decode(p3.GetValue());
-		datetime = CTime(norm_param.GetBuffer(),true);
-		if(!CWEBServer::GetInstance().GetCollector()->AddScheduledCommand(datetime,
-																	 CEibAddress(URLEncoder::Decode(p1.GetValue())),
-																	 apci,
-																	 apci_len,
-																	 err)){
-		    gen.Form_ScheduleCommand(reply.GetContent(),err);
-			return;
-		}
-		reply.Redirect(CString("/?") + CString(PARAM_NAME_COMMAND) + CString("=") + CString(PARAM_COMMAND_VALUE_SCHEDULE_COMMAND));
-		break;
-	default:
-		reply.Redirect("/");
-		break;
-	}
-
-	return;
-
-unauthorized:
-	gen.Page_UnAuthorizedAction(reply.GetContent());
+	return true;
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+// Utility functions
+//////////////////////////////////////////////////////////////////////////////////////////////
 
 bool CWebHandler::GetByteArrayFromHexString(const CString& str, unsigned char *val, unsigned char &val_len)
 {
@@ -1035,45 +920,10 @@ int CWebHandler::GetDigitValue (char digit)
 	return -1;
 }
 
-bool CWebHandler::SendEIBCommand(const CString& addr, unsigned char *apci, unsigned char apci_len, CString& err)
-{
-	START_TRY
-		CEibAddress dest_addr(URLEncoder::Decode(addr));
-
-		if(CWEBServer::GetInstance().SendEIBNetwork(dest_addr,apci,apci_len,NON_BLOCKING) == 0){
-			err += "Eib server is not connected";
-			return false;
-		}
-	END_TRY_START_CATCH(e)
-		err += e.what();
-		return false;
-	END_CATCH
-
-	return true;
-}
-
-void CWebHandler::GetHisotryFromEIB(CStatsDB& db, CString& err)
-{
-	START_TRY
-		if(!CWEBServer::GetInstance().IsConnected()){
-			err += "EIB Server is not Connected";
-			return;
-		}
-		db = CWEBServer::GetInstance().GetCollector()->GetStatsDB();
-	END_TRY_START_CATCH(e)
-		err += e.what();
-	END_CATCH
-}
-
 void CWebHandler::AddToJobQueue(TCPSocket* job)
 {
 	JTCSynchronized sync(*this);
 
 	ASSERT_ERROR(job != NULL,"NULL Socket cannot be added to queue")
 	_job_queue.push(job);
-}
-
-const CString& CWebHandler::GetCurrentDomain() const
-{
-	return CWEBServer::GetInstance().GetDomain();
 }

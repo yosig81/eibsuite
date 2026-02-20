@@ -94,9 +94,10 @@ void CUsersDB::OnSaveRecordStarted(const CUser& record,CString& record_name, lis
 		priv |= USER_POLICY_READ_ACCESS;
 	if(record.IsWritePolicyAllowed())
 		priv |= USER_POLICY_WRITE_ACCESS;
-	if(record.IsConsoleAccessAllowed())
-		priv |= USER_POLICY_CONSOLE_ACCESS;
-
+	if(record.IsWebAccessAllowed())
+		priv |= USER_POLICY_WEB_ACCESS;
+	if(record.IsAdminAccessAllowed())
+		priv |= USER_POLICY_ADMIN_ACCESS;
 	CString temp(priv);
 	param_values.insert(param_values.end(), pair<CString,CString>(USER_PRIVILIGES_PARAM_NAME,temp));
 	param_values.insert(param_values.end(), pair<CString,CString>(USER_PASSWORD_PARAM_NAME,record.GetPassword()));
@@ -219,7 +220,6 @@ bool CUsersDB::AddOrUpdateUser(CUser& user)
 {
 	CString sval;
 	int ival;
-	bool bval;
 
 	if(!ConsoleCLI::GetCString("Enter User name: ",sval, user.GetName())){
 		return false;
@@ -258,14 +258,27 @@ bool CUsersDB::AddOrUpdateUser(CUser& user)
 		return false;
 	}
 
-	if(ConsoleCLI::Getbool("Allow this user to connect through EIBConsole?",bval, user.IsConsoleAccessAllowed())){
-		if(bval){
-			user.SetPriviliges(user._priviliges | USER_POLICY_CONSOLE_ACCESS);
-		}else{
-			user.SetPriviliges(user._priviliges & ~USER_POLICY_CONSOLE_ACCESS);
-		}
+	bool bval;
+	if(ConsoleCLI::Getbool("Allow this user to access the WEB interface?", bval, user.IsWebAccessAllowed())){
+		if(bval) user.SetPriviliges(user._priviliges | USER_POLICY_WEB_ACCESS);
+		else     user.SetPriviliges(user._priviliges & ~USER_POLICY_WEB_ACCESS);
+	}
+	if(ConsoleCLI::Getbool("Grant this user Admin privileges (manage users, interface)?", bval, user.IsAdminAccessAllowed())){
+		if(bval) user.SetPriviliges(user._priviliges | USER_POLICY_ADMIN_ACCESS);
+		else     user.SetPriviliges(user._priviliges & ~USER_POLICY_ADMIN_ACCESS);
 	}
 
+	return true;
+}
+
+bool CUsersDB::AuthenticateUser(const CString& user_name, const CString& password, CUser& user)
+{
+	if (!GetRecord(user_name, user)){
+		return false;
+	}
+	if (user.GetPassword() != password){
+		return false;
+	}
 	return true;
 }
 

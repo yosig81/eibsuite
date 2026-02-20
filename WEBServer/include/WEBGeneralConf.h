@@ -14,3 +14,8 @@ CONF_ENTRY(int,ListenInterface,"LISTEN_INTERFACE",1)
 CONF_ENTRY(CString,ImagesFolder,"WEB_SERVER_IMAGES_FOLDER","./Images")
 CONF_ENTRY(CString,ListenInterface,"LISTEN_INTERFACE","eth0")
 #endif
+CONF_ENTRY(CString,ConsoleAddress,"CONSOLE_ADDRESS","127.0.0.1")
+CONF_ENTRY(int,ConsolePort,"CONSOLE_PORT",6000)
+CONF_ENTRY(CString,ConsoleUser,"CONSOLE_USER","eibadmin")
+CONF_ENTRY(CString,ConsolePassword,"CONSOLE_PASSWORD","eibadmin1")
+CONF_ENTRY(CString,WwwRoot,"WWW_ROOT","./www")

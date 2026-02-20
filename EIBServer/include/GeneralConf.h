@@ -1,7 +1,6 @@
 CONF_ENTRY(CString,InitialKey,"EIB_INITIAL_KEY","EIBKEY")
 CONF_ENTRY(int,ListeningPort,"LISTENING_PORT",5000)
 CONF_ENTRY(int,MaxConcurrentClients,"MAX_CONCURRENT_CLIENTS",10)
-CONF_ENTRY(int,ConsoleManagerPort,"CONSOLE_MANAGER_PORT",6000)
 CONF_ENTRY(int,LogLevel,"LOG_LEVEL",3)
 CONF_ENTRY(int,LogFileMaxSize,"LOG_FILE_MAX_SIZE",512)
 CONF_ENTRY(int,MaxNumObjectsHistory,"MAX_NUM_OBJECTS_HISTORY",100)
@@ -14,4 +13,12 @@ CONF_ENTRY(int,ClientsListenInterface,"CLIENTS_LISTEN_INTERFACE",1)
 #else
 CONF_ENTRY(CString,EibLocalInterface,"EIB_LOCAL_INTERFACE","eth0")
 CONF_ENTRY(CString,ClientsListenInterface,"CLIENTS_LISTEN_INTERFACE","eth0")
+#endif
+CONF_ENTRY(int,WEBServerPort,"WEB_SERVER_PORT",8080)
+CONF_ENTRY(CString,WwwRoot,"WWW_ROOT","./www")
+CONF_ENTRY(CString,ImagesFolder,"IMAGES_FOLDER","./Images")
+#ifdef WIN32
+CONF_ENTRY(int,WEBListenInterface,"WEB_LISTEN_INTERFACE",1)
+#else
+CONF_ENTRY(CString,WEBListenInterface,"WEB_LISTEN_INTERFACE","eth0")
 #endif

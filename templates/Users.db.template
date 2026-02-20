@@ -4,13 +4,12 @@
 [USER-NAME]
 
 #the priviliges assigned to the user. this field should be integer and is masked to determine the priviliges of the user
-# 0x0 - No priviliges as all
-# 0x1 - User can only Read messages from EIB server
-# 0x2 - User can only Write messages to EIB server
-# 0x4 - User can connect to EIBServer via EIBConsole
-# Example: if you want to grant all priviliges for a user then use 7 (0x1 + 0x2 + 0x4)
-# if you want to grant only Read policy then use 1
-PRIVILIGES = 7
+# 0x1 - Read: user can read messages from EIB server
+# 0x2 - Write: user can write messages to EIB server
+# 0x4 - Web: user can log into the web interface
+# 0x8 - Admin: user can manage users and EIB interface
+# Example: 15 = full access, 5 = web read-only, 7 = web read+write (no admin)
+PRIVILIGES = 15
 
 #the password for this user (Case sensitive)
 PASSWORD = Password

@@ -334,29 +334,18 @@ bool CClient::Authenticate(CUser& user)
 	if(!parser.IsLegalRequest() || request.GetRequestURI() != EIB_CLIENT_AUTHENTICATE){
 		return false;
 	}
-	CHttpHeader header;
-	if(!request.GetHeader(USER_NAME_HEADER,header)){
+	CHttpHeader user_header, pass_header;
+	if(!request.GetHeader(USER_NAME_HEADER,user_header)){
 		return false;
 	}
-	else
-	{
-		if(!CEIBServer::GetInstance().GetUsersDB().GetRecord(header.GetValue(),user)){
-			LOG_ERROR("[Clients Manager] User name \"%s\" not found. login failed.",header.GetValue().GetBuffer());
-			return false;
-		}
+	if(!request.GetHeader(PASSWORD_HEADER,pass_header)){
+		return false;
 	}
-
+	if(!CEIBServer::GetInstance().GetUsersDB().AuthenticateUser(user_header.GetValue(), pass_header.GetValue(), user)){
+		LOG_ERROR("[Clients Manager] Authentication failed for user \"%s\".", user_header.GetValue().GetBuffer());
+		return false;
+	}
 	_client_name = user.GetName();
-
-	if(!request.GetHeader(PASSWORD_HEADER,header)){
-		return false;
-	}
-	else{
-		if(user.GetPassword() != header.GetValue()){
-			LOG_ERROR("[Clients Manager] Password is not correct. login failed.");
-			return false;
-		}
-	}
 	
 
 	log.SetConsoleColor(YELLOW);

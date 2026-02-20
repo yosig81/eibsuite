@@ -6,7 +6,8 @@ OBJS += \
 BusMonConnection.o \
 Client.o \
 ClientsMgr.o \
-ConsoleManager.o \
+CommandScheduler.o \
+Dispatcher.o \
 EIBHandler.o \
 EIBInterface.o \
 EIBServer.o \
@@ -16,6 +17,8 @@ RoutingConnection.o \
 ServerConfig.o \
 TunnelConnection.o \
 UsersDB.o \
+WebHandler.o \
+XmlJsonUtil.o \
 conf/EIBBusMonConf.o \
 conf/EIBInterfaceConf.o \
 conf/EIBServerUsersConf.o
