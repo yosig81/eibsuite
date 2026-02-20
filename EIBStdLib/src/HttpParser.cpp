@@ -204,7 +204,7 @@ INTERNAL_PARSER_STATUS CHttpParser::ParseRequestVersion(CHttpRequest& request,co
 	char tmp[MAX_HTTP_VERSION_STR_LENGTH + 1];
 	int len = sscanf(&data[position],"%s ",tmp);
 	
-	if(!len == 1){
+	if(len != 1){
 		return UNKNOWN_HTTP_VERSION;
 	}
 
@@ -351,7 +351,7 @@ bool CHttpParser::ParseReplyStatus(CHttpReply& reply,const CString& data, int& p
 	char status_desc[MAX_HTTP_STATUS_CODE_DESC_STR_LENGTH];
 	int len = sscanf(&data[position],"%s ",status_code);
 	
-	if(!len == 1){
+	if(len != 1){
 		return false;
 	}
 

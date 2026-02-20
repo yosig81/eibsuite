@@ -38,23 +38,23 @@ public:
    *   @param inclSysMsg true if system message (from strerror(errno))
    *   should be postfixed to the user provided message
    */
-  SocketException(const CString &message, bool inclSysMsg = false) throw();
+  SocketException(const CString &message, bool inclSysMsg = false) noexcept;
 
   /**
    *   Provided just to guarantee that no exceptions are thrown.
    */
-  virtual ~SocketException() throw();
+  virtual ~SocketException() noexcept;
 
   /**
    *   Get the exception message
    *   @return exception message
    */
-  const char *what() const throw();
+  const char *what() const noexcept;
   /**
    *   Get the exception error code
    *   @return exception error code
    */
-  int GetErrorCode() const throw();
+  int GetErrorCode() const noexcept;
 
 private:
   CString userMessage;  // Exception message
@@ -76,22 +76,22 @@ public:
    *   @return local address of socket
    *   @exception SocketException thrown if fetch fails
    */
-  //CString GetLocalAddress() throw(SocketException);
+  //CString GetLocalAddress();
 
   void Close();
 	
   CString GetLocalAddress();
 #ifdef WIN32
-  static CString LocalAddress(int interface_index = 0) throw (SocketException);
+  static CString LocalAddress(int interface_index = 0);
 #else
-  static CString LocalAddress(const CString& interface_name = EMPTY_STRING) throw (SocketException);
+  static CString LocalAddress(const CString& interface_name = EMPTY_STRING);
 #endif
   /**
    *   Get the local port
    *   @return local port of socket
    *   @exception SocketException thrown if fetch fails
    */
-  int GetLocalPort() throw(SocketException);
+  int GetLocalPort();
 
   /**
    *   Set the local port to the specified port and the local address
@@ -99,7 +99,7 @@ public:
    *   @param localPort local port
    *   @exception SocketException thrown if setting local port fails
    */
-  void SetLocalPort(int localPort) throw(SocketException);
+  void SetLocalPort(int localPort);
 
   /**
    *   Set the local port to the specified port and the local address
@@ -109,7 +109,7 @@ public:
    *   @param localPort local port
    *   @exception SocketException thrown if setting local port or address fails
    */
-  void SetLocalAddressAndPort(const CString &localAddress,int localPort = 0) throw(SocketException);
+  void SetLocalAddressAndPort(const CString &localAddress,int localPort = 0);
 
   /**
    *   If WinSock, unload the WinSock DLLs; otherwise do nothing.  We ignore
@@ -121,7 +121,7 @@ public:
    *   an empty function on non-Windows platforms so you can always include it.
    *   @exception SocketException thrown WinSock clean up fails
    */
-  static void CleanUp() throw(SocketException);
+  static void CleanUp();
 
   /**
    *   Resolve the specified service for the specified protocol to the
@@ -133,7 +133,7 @@ public:
                                        const CString &protocol = "tcp");
 
 
-  void SetNonBlocking() throw(SocketException);
+  void SetNonBlocking();
 
   void GetError(CString& error_str);
 
@@ -145,7 +145,7 @@ private:
 
 protected:
   int sockDesc;              // Socket descriptor
-  Socket(int type, int protocol) throw(SocketException);
+  Socket(int type, int protocol);
   Socket(int sockDesc);
 };
 
@@ -162,7 +162,7 @@ public:
    *   @exception SocketException thrown if unable to establish connection
    */
   void Connect(const CString &foreignAddress, unsigned short foreignPort)
-    throw(SocketException);
+   ;
 
   /**
    *   Write the given buffer to this socket.  Call connect() before
@@ -171,7 +171,7 @@ public:
    *   @param bufferLen number of bytes from buffer to be written
    *   @exception SocketException thrown if unable to send data
    */
-  void Send(const void *buffer, int bufferLen) throw(SocketException);
+  void Send(const void *buffer, int bufferLen);
 
   /**
    *   Read into the given buffer up to bufferLen bytes data from this
@@ -181,24 +181,24 @@ public:
    *   @return number of bytes read, 0 for EOF, and -1 for error
    *   @exception SocketException thrown if unable to receive data
    */
-  int Recv(void *buffer, int bufferLen) throw(SocketException);
+  int Recv(void *buffer, int bufferLen);
 
   /**
    *   Get the foreign address.  Call connect() before calling recv()
    *   @return foreign address
    *   @exception SocketException thrown if unable to fetch foreign address
    */
-  CString GetForeignAddress() throw(SocketException);
+  CString GetForeignAddress();
 
   /**
    *   Get the foreign port.  Call connect() before calling recv()
    *   @return foreign port
    *   @exception SocketException thrown if unable to fetch foreign port
    */
-  unsigned short GetForeignPort() throw(SocketException);
+  unsigned short GetForeignPort();
 
 protected:
-  CommunicatingSocket(int type, int protocol) throw(SocketException);
+  CommunicatingSocket(int type, int protocol);
   CommunicatingSocket(int newConnSD);
 };
 
@@ -211,7 +211,7 @@ public:
    *   Construct a TCP socket with no connection
    *   @exception SocketException thrown if unable to create TCP socket
    */
-  TCPSocket() throw(SocketException);
+  TCPSocket();
 
   /**
    *   Construct a TCP socket with a connection to the given foreign address
@@ -221,9 +221,9 @@ public:
    *   @exception SocketException thrown if unable to create TCP socket
    */
   TCPSocket(const CString &foreignAddress, unsigned short foreignPort)
-      throw(SocketException);
+     ;
 
-  int Recv(void *buffer, int bufferLen,int timeout) throw(SocketException);
+  int Recv(void *buffer, int bufferLen,int timeout);
 
 private:
   // Access for TCPServerSocket::accept() connection creation
@@ -246,7 +246,7 @@ public:
    *   @exception SocketException thrown if unable to create TCP server socket
    */
   TCPServerSocket(int localPort, int queueLen = 5)
-      throw(SocketException);
+     ;
 
   /**
    *   Construct a TCP socket for use with a server, accepting connections
@@ -258,17 +258,17 @@ public:
    *   @exception SocketException thrown if unable to create TCP server socket
    */
   TCPServerSocket(const CString &localAddress, int localPort,
-      int queueLen = 5) throw(SocketException);
+      int queueLen = 5);
 
   /**
    *   Blocks until a new connection is established on this socket or error
    *   @return new connection socket
    *   @exception SocketException thrown if attempt to accept a new connection fails
    */
-  TCPSocket *Accept(unsigned int time_out = INFINITE) throw(SocketException);
+  TCPSocket *Accept(unsigned int time_out = INFINITE);
 
 private:
-  void SetListen(int queueLen) throw(SocketException);
+  void SetListen(int queueLen);
 };
 
 /**
@@ -280,14 +280,14 @@ public:
    *   Construct a UDP socket
    *   @exception SocketException thrown if unable to create UDP socket
    */
-  UDPSocket() throw(SocketException);
+  UDPSocket();
 
   /**
    *   Construct a UDP socket with the given local port
    *   @param localPort local port
    *   @exception SocketException thrown if unable to create UDP socket
    */
-  UDPSocket(unsigned short localPort) throw(SocketException);
+  UDPSocket(unsigned short localPort);
 
   /**
    *   Construct a UDP socket with the given local port and address
@@ -296,14 +296,14 @@ public:
    *   @exception SocketException thrown if unable to create UDP socket
    */
   UDPSocket(const CString &localAddress, unsigned short localPort)
-      throw(SocketException);
+     ;
 
   /**
    *   Unset foreign address and port
    *   @return true if disassociation is successful
    *   @exception SocketException thrown if unable to disconnect UDP socket
    */
-  void Disconnect() throw(SocketException);
+  void Disconnect();
 
   /**
    *   Send the given buffer as a UDP datagram to the
@@ -316,7 +316,7 @@ public:
    *   @exception SocketException thrown if unable to send datagram
    */
   void SendTo(const void *buffer, int bufferLen, const CString &foreignAddress,
-            int foreignPort) throw(SocketException);
+            int foreignPort);
 
   /**
    *   Send the given buffer as a UDP datagram to the
@@ -343,7 +343,7 @@ public:
    *   @exception SocketException thrown if unable to receive datagram
    */
   int RecvFrom(void *buffer, int bufferLen, CString &sourceAddress,
-               int &sourcePort) throw(SocketException);
+               int &sourcePort);
 
   /**
    *   Read read up to bufferLen bytes data from this socket.  The given buffer
@@ -356,42 +356,42 @@ public:
    *   @return number of bytes received and -1 for error
    *   @exception SocketException thrown if unable to receive datagram
    */
-  int RecvFrom(void *buffer, int bufferLen, CString &sourceAddress,int &sourcePort, int time_out) throw(SocketException);
+  int RecvFrom(void *buffer, int bufferLen, CString &sourceAddress,int &sourcePort, int time_out);
 
   /**
    *   Set the multicast TTL
    *   @param multicastTTL multicast TTL
    *   @exception SocketException thrown if unable to set TTL
    */
-  void SetMulticastTTL(unsigned char multicastTTL) throw(SocketException);
+  void SetMulticastTTL(unsigned char multicastTTL);
 
   /**
    *   Join the specified multicast group
    *   @param multicastGroup multicast group address to join
    *   @exception SocketException thrown if unable to join group
    */
-  void JoinGroup(const CString& local_address,const CString& multicastGroup) throw(SocketException);
+  void JoinGroup(const CString& local_address,const CString& multicastGroup);
 
   /**
    *   Leave the specified multicast group
    *   @param multicastGroup multicast group address to leave
    *   @exception SocketException thrown if unable to leave group
    */
-  void LeaveGroup(const CString& multicastGroup) throw(SocketException);
+  void LeaveGroup(const CString& multicastGroup);
 
   /**
   *   Enable/Disable multicast packets on loopback interface
   *   @param val flag to Enable(true)/Disable(false)
   *   @exception SocketException thrown if unable to set the socket option
   */
-  void SetMulticastLoopBack(bool val) throw(SocketException);
+  void SetMulticastLoopBack(bool val);
 
   /**
   *   Set the outgoing interface for multicast datagrams
   *   @param local_address IP address of the local interface to use
   *   @exception SocketException thrown if unable to set the socket option
   */
-  void SetMulticastInterface(const CString& local_address) throw(SocketException);
+  void SetMulticastInterface(const CString& local_address);
 
 private:
   void SetBroadcast();

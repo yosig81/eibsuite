@@ -8,6 +8,7 @@
 
 */
 #include "CMutex.h"
+#include <cstdio>
 
 CMutex::CMutex()
 {
@@ -73,7 +74,7 @@ CMutex::~CMutex()
 	CloseHandle(this->Handle);
 #else
 	if(pthread_mutex_destroy(&this->Handle) != 0){
-		throw CEIBException(MutexError,"Error in destroying mutex.");
+		perror("Error in destroying mutex");
 	}
 #endif
 }
