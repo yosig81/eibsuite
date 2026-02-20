@@ -11,6 +11,7 @@ class EIB_STD_EXPORT CTime
 {
 private:
 	int _time_val;
+	static bool _default_local_time;
 	static struct tm* EibTime(const int* timer);
 	static struct tm* EibGMTime(const int* timer);
 	static struct tm* EIBTtime_r(const int* timer, struct tm* res);
@@ -33,9 +34,14 @@ public:
 	void SetTime(int t) { _time_val = t; }
 	int secTo() const; // Return how many seconds is ('current time' - time_val)
 
+	// Default time format preference (local vs UTC) for Format() with no args
+	static void SetDefaultLocalTime(bool local) { _default_local_time = local; }
+	static bool GetDefaultLocalTime() { return _default_local_time; }
+
 	//Converts a CTime object into a formatted string and concat it to the input string
 	void AddFormatToString(CString& result,bool get_local) const ;
-	CString Format(bool get_local = true) const; //Converts a CTime object into a formatted string.
+	CString Format() const; //Converts using static default preference
+	CString Format(bool get_local) const; //Converts using explicit local/UTC choice
 
 	void SetNow();
 	void SetTimeZero();

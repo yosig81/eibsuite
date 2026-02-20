@@ -8,7 +8,7 @@ void usage()
 	cout << "Usage: EIBServer [OPTION]" << endl;
 	cout << "Available options:" << endl;
 	cout << '\t' << "-i Interactive mode for creating the configuration file" << endl;
-	cout << '\t' << "-i Interactive mode for creating the users database file" << endl;
+	cout << '\t' << "-u Interactive mode for creating the users database file" << endl;
 	cout << '\t' << "-h prints this message and exit" << endl << endl;
 	cout << "Report EIBServer bugs to yosig81@gmail.com" << endl << endl;
 }

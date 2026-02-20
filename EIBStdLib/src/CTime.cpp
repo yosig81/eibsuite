@@ -1,5 +1,7 @@
 #include "CTime.h"
 
+bool CTime::_default_local_time = true;
+
 void CTime::Initialize()
 {
 #ifdef WIN32
@@ -160,6 +162,13 @@ int CTime::secTo() const
 Converts a CTime object into a formatted string (unix style)
 based on the local time zone.
 **/
+CString CTime::Format() const
+{
+	CString result ;
+	AddFormatToString ( result , _default_local_time ) ;
+	return result ;
+}
+
 CString CTime::Format(bool get_local) const
 {
 	CString result ;
@@ -599,7 +608,7 @@ struct tm* CTime::EIBTtime_r(const int* timer, struct tm* res)
 	if (timer)
 	{
 		l_timer = (int)(*timer);
-		ret_val = gmtime_r(&l_timer, res);
+		ret_val = localtime_r(&l_timer, res);
 	}
 	else
 	{
@@ -617,11 +626,11 @@ struct tm* CTime::EibGMTime_r(const int* timer, struct tm* res)
 	if (timer)
 	{
 		l_timer = (int)(*timer);
-		ret_val = localtime_r(&l_timer, res);
+		ret_val = gmtime_r(&l_timer, res);
 	}
 	else
 	{
-		ret_val = localtime_r(NULL, res);
+		ret_val = gmtime_r(NULL, res);
 	}
 
 	return ret_val;
