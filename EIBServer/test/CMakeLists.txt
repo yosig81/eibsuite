@@ -185,5 +185,6 @@ VALUE = 0x00
 
     gtest_discover_tests(eibserver_integration_tests
         WORKING_DIRECTORY ${INTEG_WORKDIR}
+        PROPERTIES RESOURCE_LOCK eibserver_integ
     )
 endif()
