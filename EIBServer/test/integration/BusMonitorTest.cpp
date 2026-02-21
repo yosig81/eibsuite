@@ -44,18 +44,18 @@ TEST_F(BusMonitorTest, MultipleIndications)
     unsigned char val2[] = {0x02};
     unsigned char val3[] = {0x03};
 
-    // Delay between sends for tunnel ACK round-trip
+    // Send each indication and wait for it to arrive before sending the next,
+    // so the KNX/IP tunnel ACK sequence stays in sync.
     EmulatorSendIndication("0/0/1", val1, 1);
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    EmulatorSendIndication("0/0/2", val2, 1);
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    EmulatorSendIndication("1/2/3", val3, 1);
-
-    EXPECT_TRUE(WaitForBodyContains(http, "/api/admin/busmon", admin_sid, "0/0/1"))
+    EXPECT_TRUE(WaitForBodyContains(http, "/api/admin/busmon", admin_sid, "0/0/1", 3000))
         << "Missing 0/0/1";
-    EXPECT_TRUE(WaitForBodyContains(http, "/api/admin/busmon", admin_sid, "0/0/2"))
+
+    EmulatorSendIndication("0/0/2", val2, 1);
+    EXPECT_TRUE(WaitForBodyContains(http, "/api/admin/busmon", admin_sid, "0/0/2", 3000))
         << "Missing 0/0/2";
-    EXPECT_TRUE(WaitForBodyContains(http, "/api/admin/busmon", admin_sid, "1/2/3"))
+
+    EmulatorSendIndication("1/2/3", val3, 1);
+    EXPECT_TRUE(WaitForBodyContains(http, "/api/admin/busmon", admin_sid, "1/2/3", 3000))
         << "Missing 1/2/3";
 }
 

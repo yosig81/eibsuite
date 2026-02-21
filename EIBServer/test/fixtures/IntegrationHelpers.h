@@ -25,6 +25,15 @@ namespace IntegrationTest {
 class IntegrationEnvironment : public ::testing::Environment {
 public:
     void SetUp() override {
+        // 0. Save a copy of Users.db so we can restore it after server shuts down
+        //    (server Close() saves its in-memory state to disk).
+        std::ifstream db_in("conf/Users.db");
+        if (db_in.is_open()) {
+            _original_users_db.assign(
+                (std::istreambuf_iterator<char>(db_in)),
+                 std::istreambuf_iterator<char>());
+        }
+
         // 1. Init emulator (loads conf/Emulator.conf, conf/Emulator.db, binds UDP :3671)
         bool emu_ok = InitEmulator();
         ASSERT_TRUE(emu_ok) << "Emulator Init() failed";
@@ -51,6 +60,8 @@ public:
     }
 
 private:
+    std::string _original_users_db;
+
     void WaitForWebServer(int port, int max_attempts = 50) {
         for (int i = 0; i < max_attempts; ++i) {
             try {
@@ -69,6 +80,12 @@ public:
         CEIBServer::GetInstance().Close();
         StopEmulator();
         // Intentionally skip delete/Destroy to avoid JTC static destruction crashes
+
+        // Restore original Users.db (server Close() may have overwritten it)
+        if (!_original_users_db.empty()) {
+            std::ofstream db_out("conf/Users.db", std::ios::trunc);
+            db_out << _original_users_db;
+        }
     }
 };
 
@@ -105,11 +122,24 @@ public:
     // POST request with JSON body, optionally with session cookie
     HttpResponse Post(const CString& uri, const CString& body,
                       const CString& session_id = "") {
+        return PostWithContentType(uri, body, "application/json", session_id);
+    }
+
+    // POST request with XML body, optionally with session cookie
+    HttpResponse PostXml(const CString& uri, const CString& body,
+                         const CString& session_id = "") {
+        return PostWithContentType(uri, body, "text/xml", session_id);
+    }
+
+    // POST request with custom content type
+    HttpResponse PostWithContentType(const CString& uri, const CString& body,
+                                     const CString& content_type,
+                                     const CString& session_id = "") {
         CString req("POST ");
         req += uri;
         req += " HTTP/1.0\r\n";
         req += CString("Host: ") + _host + "\r\n";
-        req += "Content-Type: application/json\r\n";
+        req += CString("Content-Type: ") + content_type + "\r\n";
         req += CString("Content-Length: ") + CString(body.GetLength()) + "\r\n";
         if (session_id.GetLength() > 0) {
             req += CString("Cookie: WEBSESSIONID=") + session_id + "\r\n";

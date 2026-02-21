@@ -25,13 +25,15 @@ target_link_libraries(EIBServer PRIVATE EIBStdLib)
 
 # Copy static assets (www/, Images/) next to the executable so the
 # default relative paths ("./www", "./Images") work out of the box.
-add_custom_command(TARGET EIBServer POST_BUILD
+# Uses a separate target so assets are synced on every build, even
+# when no C++ sources change.
+add_custom_target(EIBServer-assets ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_CURRENT_SOURCE_DIR}/www
-        $<TARGET_FILE_DIR:EIBServer>/www
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/www
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_CURRENT_SOURCE_DIR}/Images
-        $<TARGET_FILE_DIR:EIBServer>/Images
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Images
 )
 
 if(BUILD_TESTS)

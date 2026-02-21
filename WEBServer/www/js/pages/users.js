@@ -1,6 +1,5 @@
 App.registerPage('users', {
     _users: null,
-    _dirty: false,
     _editIndex: -1,
 
     render: function(container) {
@@ -10,8 +9,7 @@ App.registerPage('users', {
                 '<div class="toolbar">' +
                     '<div>' +
                         '<button class="btn btn-primary" id="users-refresh">Refresh</button> ' +
-                        '<button class="btn btn-success" id="users-add">Add User</button> ' +
-                        '<button class="btn btn-warning" id="users-save" disabled>Save Changes</button>' +
+                        '<button class="btn btn-success" id="users-add">Add User</button>' +
                     '</div>' +
                 '</div>' +
                 '<div id="users-msg" style="display:none;"></div>' +
@@ -56,7 +54,6 @@ App.registerPage('users', {
         var self = this;
         document.getElementById('users-refresh').addEventListener('click', function() { self.load(); });
         document.getElementById('users-add').addEventListener('click', function() { self.showAddDialog(); });
-        document.getElementById('users-save').addEventListener('click', function() { self.save(); });
         document.getElementById('user-cancel').addEventListener('click', function() { self.hideDialog(); });
         document.getElementById('user-form').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -90,9 +87,6 @@ App.registerPage('users', {
                 return;
             }
             self._users = data;
-            self._dirty = false;
-            var saveBtn = document.getElementById('users-save');
-            if (saveBtn) saveBtn.disabled = true;
             self.renderTable();
         }).catch(function(err) {
             if (loading) loading.style.display = 'none';
@@ -191,10 +185,7 @@ App.registerPage('users', {
         var userList = this.getUserList();
         if (index >= userList.length) return;
         userList.splice(index, 1);
-        this._dirty = true;
-        var saveBtn = document.getElementById('users-save');
-        if (saveBtn) saveBtn.disabled = false;
-        this.renderTable();
+        this.save();
     },
 
     hideDialog: function() {
@@ -232,11 +223,8 @@ App.registerPage('users', {
             userList.push(user);
         }
 
-        this._dirty = true;
-        var saveBtn = document.getElementById('users-save');
-        if (saveBtn) saveBtn.disabled = false;
         this.hideDialog();
-        this.renderTable();
+        this.save();
     },
 
     save: function() {
@@ -268,9 +256,7 @@ App.registerPage('users', {
                 self.showMsg(data.error, 'error-msg');
             } else {
                 self.showMsg('Users saved successfully.', 'success-msg');
-                self._dirty = false;
-                var saveBtn = document.getElementById('users-save');
-                if (saveBtn) saveBtn.disabled = true;
+                self.renderTable();
             }
         }).catch(function(err) {
             self.showMsg(err.message, 'error-msg');

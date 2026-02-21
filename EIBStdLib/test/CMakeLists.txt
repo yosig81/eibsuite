@@ -28,6 +28,7 @@ add_executable(eibstdlib_tests
     unit/URLEncodingTest.cpp
     unit/UtilsTest.cpp
     unit/XGetoptTest.cpp
+    unit/XmlParserTest.cpp
 )
 
 set_target_properties(eibstdlib_tests PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)

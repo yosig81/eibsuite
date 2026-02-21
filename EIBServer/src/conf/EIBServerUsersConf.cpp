@@ -42,7 +42,10 @@ void CEIBServerUsersConf::FromXml(const CDataBuffer& xml_str)
 	_clients.clear();
 	try
 	{
-		_doc.Parse((const char*)xml_str.GetBuffer());
+		// CDataBuffer is not null-terminated; create a CString to ensure
+		// the XML parser receives a properly terminated C string.
+		CString xml_safe((const char*)xml_str.GetBuffer(), xml_str.GetLength());
+		_doc.Parse(xml_safe);
 		if(!_doc.RootElement().FirstChildElement(EIB_SERVER_USERS_LIST_XML).IsValid()){
 			//send error xml to console
 			return;

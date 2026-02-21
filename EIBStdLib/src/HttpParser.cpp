@@ -20,22 +20,23 @@ CHttpParser::CHttpParser(CHttpRequest& request, const char* data, int length): _
 }
 
 CHttpParser::CHttpParser(CHttpRequest& request,const char* data, int length, TCPSocket& socket)
+: _legal(false)
 {
 	int position = 0;
 	if (this->ParseRequestMethod(request,data,position) != PARSE_OK){
-		_legal = false;
+		return;
 	}
 	if (this->ParseRequestLine(request,data,position) != PARSE_OK){
-		_legal = false;
+		return;
 	}
 	if(this->ParseRequestVersion(request,data,position) != PARSE_OK){
-		_legal = false;
+		return;
 	}
 	if(this->ParseRequestHeaders(request,data,position) != PARSE_OK){
-		_legal = false;
+		return;
 	}
 	if(!this->RequestContentHandler(request,position,data,length,socket)){
-		_legal = false;
+		return;
 	}
 	_legal = true;
 }
@@ -121,6 +122,10 @@ bool CHttpParser::ParseRequest(CHttpRequest& request,const char* data, int lengt
 	}
 	if(this->ParseRequestHeaders(request,data,position) != PARSE_OK){
 		return false;
+	}
+	// Skip the \r\n separator between headers and body
+	if(data[position] == CR && data[position + 1] == LF){
+		position += 2;
 	}
 	request._content.Clear();
 	if(this->ParseRequestContent(request,data,position,length) != PARSE_OK){
