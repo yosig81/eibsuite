@@ -115,6 +115,11 @@ void CEmulatorCmd::HandleSendCommand()
 	CEmulatorDB& db = CEIBEmulator::GetInstance().GetDB();
 
 	int size = db.GetNumOfRecords();
+	if (size == 0) {
+		LOG_SCREEN("Emulator database is empty. Nothing to send.\n");
+		return;
+	}
+
 	db.Print();
 
 	CGroupEntry ge;

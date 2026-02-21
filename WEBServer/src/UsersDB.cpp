@@ -150,14 +150,11 @@ bool CUsersDB::AddOrUpdateUser(CUser& user)
 	map<int,CString> map1;
 	map1.insert(map1.end(),pair<int,CString>(1,"None"));
 	map1.insert(map1.end(),pair<int,CString>(2,"Read only"));
-	map1.insert(map1.end(),pair<int,CString>(3,"Write only"));
-	map1.insert(map1.end(),pair<int,CString>(4,"Read & Write"));
+	map1.insert(map1.end(),pair<int,CString>(3,"Read & Write"));
 
 	int temp = 1;
 	if(user.IsReadPolicyAllowed()){
-		temp = user.IsWritePolicyAllowed() ? 4 : 2;
-	}else if(user.IsWritePolicyAllowed()){
-		temp = 3;
+		temp = user.IsWritePolicyAllowed() ? 3 : 2;
 	}
 
 	ConsoleCLI::GetStrOption("Set user Privileges:", map1, ival, temp);
@@ -167,9 +164,7 @@ bool CUsersDB::AddOrUpdateUser(CUser& user)
 		break;
 	case 2: user.SetPriviliges(USER_POLICY_READ_ACCESS);
 		break;
-	case 3: user.SetPriviliges(USER_POLICY_WRITE_ACCESS);
-		break;
-	case 4: user.SetPriviliges(USER_POLICY_READ_ACCESS | USER_POLICY_WRITE_ACCESS);
+	case 3: user.SetPriviliges(USER_POLICY_READ_ACCESS | USER_POLICY_WRITE_ACCESS);
 		break;
 	default: LOG_SCREEN("Unknown option. canceling...\n");
 		return false;
