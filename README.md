@@ -51,7 +51,6 @@ Binaries are placed in `build/bin/`, libraries in `build/lib/`.
 | Target | Binary |
 |--------|--------|
 | EIBServer | `build/bin/EIBServer` |
-| WEBServer | `build/bin/WEBServer` |
 | Emulator-ng | `build/bin/Emulator-ng` |
 | AMXServer | `build/bin/AMXServer` |
 | SMSServer | `build/bin/SMSServer` |
