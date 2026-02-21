@@ -1,41 +1,28 @@
-// DispatcherNullGuardTest.cpp -- Verify Dispatcher handles Init() failure gracefully.
+// DispatcherNullGuardTest.cpp -- Verify Dispatcher handles resource conflicts gracefully.
 //
-// When Dispatcher::Init() fails (e.g. port already in use), _server_sock
-// remains NULL.  Previously this caused two problems:
-//   1. Init()'s catch block called GetServerPort() which dereferenced NULL.
-//   2. run() called _server_sock->Accept() which dereferenced NULL.
+// With the old socket-based dispatcher, Init() would throw when the port
+// was already in use.  With cpp-httplib, Init() succeeds (it only creates
+// the SSLServer object), but listen() inside Start() silently fails.
+// This test verifies that creating a second dispatcher and calling Init()
+// + Close() does not crash, even when the port is occupied.
 
 #include "IntegrationHelpers.h"
 #include "Dispatcher.h"
 
 using namespace IntegrationTest;
 
-TEST(DispatcherNullGuardTest, InitErrorPathDoesNotCrash)
+TEST(DispatcherNullGuardTest, SecondDispatcherInitAndCloseDoesNotCrash)
 {
     // The integration environment already has the server's Dispatcher
     // bound to port 18080.  Creating a second Dispatcher and calling
-    // Init() will fail because the port is already in use.
-    //
-    // Before the fix, Init()'s catch block called GetServerPort() which
-    // dereferenced the NULL _server_sock pointer.  After the fix it uses
-    // conf.GetWEBServerPort() instead.
-    //
-    // Heap-allocate and intentionally leak to avoid JTC static destruction
-    // issues (same pattern as IntegrationEnvironment::TearDown).
+    // Init() should succeed (SSLServer created with valid certs), and
+    // Close() should clean up without crashing.
     CDispatcher* dispatcher = new CDispatcher();
 
-    bool caught_exception = false;
-    try {
-        dispatcher->Init();
-    } catch (const CEIBException&) {
-        caught_exception = true;
-    } catch (...) {
-        caught_exception = true;
-    }
+    // Init should succeed -- cert/key are valid, server object is created
+    EXPECT_NO_THROW(dispatcher->Init());
 
-    EXPECT_TRUE(caught_exception)
-        << "Expected Dispatcher::Init() to throw on occupied port 18080";
-
-    // Intentionally leak -- JTCThread destructor on an un-started thread
-    // can corrupt JTC internal state.
+    // Clean up without crashing
+    dispatcher->Close();
+    delete dispatcher;
 }

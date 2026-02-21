@@ -21,7 +21,8 @@ add_executable(EIBServer
 )
 
 target_include_directories(EIBServer PRIVATE include include/conf)
-target_link_libraries(EIBServer PRIVATE EIBStdLib)
+set_target_properties(EIBServer PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+target_link_libraries(EIBServer PRIVATE EIBStdLib httplib::httplib OpenSSL::SSL OpenSSL::Crypto)
 
 # Copy static assets (www/, Images/) next to the executable so the
 # default relative paths ("./www", "./Images") work out of the box.

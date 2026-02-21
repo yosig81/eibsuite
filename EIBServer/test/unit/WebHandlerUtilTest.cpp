@@ -1,45 +1,29 @@
 #include <gtest/gtest.h>
 #include "WebHandler.h"
-#include "../fixtures/TestHelpers.h"
+#include "Html.h"
 
 // CWebHandler declares:  friend class WebHandlerUtilTest;
 // This gives the test fixture access to the private utility methods.
 
 class WebHandlerUtilTest : public ::testing::Test {
 protected:
-    // Share a single CWebHandler across all tests to avoid JTC resource
-    // exhaustion (CWebHandler inherits JTCThread + JTCMonitor).
-    static CWebHandler* handler_;
-
-    static void SetUpTestSuite() {
-        handler_ = new CWebHandler();
-    }
-    static void TearDownTestSuite() {
-        // Intentionally leak to avoid segfault during static destruction.
-        // JTC thread objects crash if destroyed after JTCInitialize goes
-        // out of scope; since we're at process exit, the OS reclaims memory.
-        handler_ = nullptr;
-    }
-
-    // Wrappers that call the private methods via friend access.
+    // Wrappers that call the private static methods via friend access.
     CString GetJsonField(const CString& json, const CString& field) {
-        return handler_->GetJsonField(json, field);
+        return CWebHandler::GetJsonField(json, field);
     }
     bool GetByteArrayFromHexString(const CString& str, unsigned char* val, unsigned char& val_len) {
-        return handler_->GetByteArrayFromHexString(str, val, val_len);
+        return CWebHandler::GetByteArrayFromHexString(str, val, val_len);
     }
     CString GetMimeType(const CString& path) {
-        return handler_->GetMimeType(path);
+        return CWebHandler::GetMimeType(path);
     }
     unsigned char HexToChar(const CString& hex) {
-        return handler_->HexToChar(hex);
+        return CWebHandler::HexToChar(hex);
     }
     int GetDigitValue(char c) {
-        return handler_->GetDigitValue(c);
+        return CWebHandler::GetDigitValue(c);
     }
 };
-
-CWebHandler* WebHandlerUtilTest::handler_ = nullptr;
 
 // ---------------------------------------------------------------------------
 // GetJsonField

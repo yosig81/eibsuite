@@ -1,79 +1,97 @@
 #include "Dispatcher.h"
 #include "EIBServer.h"
+#include "WebHandler.h"
 
-CDispatcher::CDispatcher() :
-_server_sock(NULL),
-_num_handlers(NUM_HANDLERS),
-_stop(false)
+CDispatcher::CDispatcher() : _port(0)
 {
-	for (int i=0; i < _num_handlers; ++i)
-	{
-		_handlers[i] = new CWebHandler();
-	}
-	this->setName("Dispatcher");
 }
 
 CDispatcher::~CDispatcher()
 {
-	if(_server_sock != NULL){
-		delete _server_sock;
-		_server_sock = NULL;
-	}
-}
-
-void CDispatcher::Close()
-{
-	_stop = true;
-	JTCSynchronized sync(*this);
-
-	for (int i=0; i < _num_handlers; ++i)
-	{
-		_handlers[i]->Close();
-	}
 }
 
 void CDispatcher::Init()
 {
 	CServerConfig& conf = CEIBServer::GetInstance().GetConfig();
-	try
-	{
-		if(_server_sock == NULL){
-			_server_sock = new TCPServerSocket(conf.GetWEBServerPort());
-			_server_address = Socket::LocalAddress(conf.GetWEBListenInterface());
+	_port = conf.GetWEBServerPort();
+
+	const CString& cert = conf.GetTLSCertFile();
+	const CString& key  = conf.GetTLSKeyFile();
+
+	if (cert.GetLength() == 0 || key.GetLength() == 0) {
+		throw CEIBException(GeneralError,
+			"TLS_CERT_FILE and TLS_KEY_FILE must be set in EIB.conf");
+	}
+
+	try {
+		_server = std::make_unique<httplib::SSLServer>(
+			cert.GetBuffer(), key.GetBuffer());
+	} catch (const std::exception& e) {
+		throw CEIBException(GeneralError,
+			"Failed to create HTTPS server: %s", e.what());
+	}
+
+	if (!_server->is_valid()) {
+		throw CEIBException(GeneralError,
+			"HTTPS server failed to initialize (check cert/key paths)");
+	}
+
+	RegisterRoutes();
+
+	// Static file mount points
+	CString www_root = conf.GetWwwRoot();
+	CString images_folder = conf.GetImagesFolder();
+
+	if (www_root.GetLength() > 0) {
+		_server->set_mount_point("/", www_root.GetBuffer());
+	}
+	if (images_folder.GetLength() > 0) {
+		_server->set_mount_point("/Images", images_folder.GetBuffer());
+	}
+
+	// Error handler: JSON 404 for API paths, SPA fallback for everything else
+	CString index_path = www_root + "/index.html";
+	_server->set_error_handler([index_path](const httplib::Request& req, httplib::Response& res) {
+		if (res.status == 404) {
+			if (req.path.find("/api/") == 0) {
+				// API path: return JSON error
+				res.set_content("{\"error\":\"Unknown API endpoint\"}", "application/json");
+			} else {
+				// SPA fallback: serve index.html
+				std::ifstream f(index_path.GetBuffer(), std::ios::binary);
+				if (f.is_open()) {
+					std::string body((std::istreambuf_iterator<char>(f)),
+									 std::istreambuf_iterator<char>());
+					res.set_content(body, "text/html");
+					res.status = 200;
+				}
+			}
 		}
-	}
-	catch (SocketException& e)
-	{
-		LOG_ERROR("Socket Error: %s", e.what());
-		throw CEIBException(SocketError,"Error in port [%d] binding: %s",conf.GetWEBServerPort(),e.what());
-		return;
-	}
+	});
 }
 
-void CDispatcher::run()
+void CDispatcher::RegisterRoutes()
 {
-	JTCSynchronized sync(*this);
+	CWebHandler::RegisterRoutes(*_server);
+}
 
-	if (_server_sock == NULL) {
-		LOG_ERROR("[Dispatcher] No listening socket -- web interface disabled.");
+void CDispatcher::Start()
+{
+	if (!_server) {
+		LOG_ERROR("[Dispatcher] No HTTPS server -- web interface disabled.");
 		return;
 	}
+	_listen_thread = std::thread([this]() {
+		_server->listen("0.0.0.0", _port);
+	});
+}
 
-	unsigned int counter = 0;
-
-	//start the handlers
-	for (int i=0; i < _num_handlers ; ++i){
-		_handlers[i]->start();
+void CDispatcher::Close()
+{
+	if (_server) {
+		_server->stop();
 	}
-
-	while (!_stop)
-	{
-		TCPSocket* sock = _server_sock->Accept(100);
-		if (sock != NULL)
-		{
-			int id = counter++ % _num_handlers;
-			_handlers[id]->AddToJobQueue(sock);
-			_handlers[id]->Signal();
-		}
+	if (_listen_thread.joinable()) {
+		_listen_thread.join();
 	}
 }

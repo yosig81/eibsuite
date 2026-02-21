@@ -38,7 +38,6 @@
 #define EIB_SERVER_PROCESS_NAME "EIBserver"
 
 typedef JTCHandleT<CClientsMgr> CClientsMgrHandle;
-typedef JTCHandleT<CDispatcher> CDispatcherHandle;
 typedef JTCHandleT<CCommandScheduler> CCommandSchedulerHandle;
 
 //some useful MACROS
@@ -144,7 +143,7 @@ public:
 private:
 	static CEIBServer* _instance;
 	CClientsMgrHandle _clients_mgr;
-	CDispatcherHandle _dispatcher;
+	CDispatcher* _dispatcher;
 	CCommandSchedulerHandle _scheduler;
 	CEIBInterface* _interface;
 	CUsersDB _users_db;

@@ -127,4 +127,4 @@ CEIBBusMonAddrListConf::CEIBBusMonAddrListConf() {}
 CEIBBusMonAddrListConf::~CEIBBusMonAddrListConf() {}
 void CEIBBusMonAddrListConf::ToXml(CDataBuffer&) {}
 void CEIBBusMonAddrListConf::FromXml(const CDataBuffer&) {}
-bool CEIBBusMonAddrListConf::SendCmdToAddr(const CHttpRequest&) { return false; }
+bool CEIBBusMonAddrListConf::SendCmdToAddr(const CString&, const CString&, const CString&) { return false; }

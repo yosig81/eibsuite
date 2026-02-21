@@ -4,6 +4,7 @@
 #include "CTime.h"
 #include "URLEncoding.h"
 #include "Utils.h"
+#include "Digest.h"
 #include "conf/EIBServerUsersConf.h"
 #include "conf/EIBInterfaceConf.h"
 #include "conf/EIBBusMonConf.h"
@@ -11,259 +12,50 @@
 #include <cstdlib>
 #include <ctime>
 
-map<CString, WebSession> CWebHandler::_sessions;
-JTCMutex CWebHandler::_session_mutex;
+std::map<CString, WebSession> CWebHandler::_sessions;
+std::mutex CWebHandler::_session_mutex;
 
-CWebHandler::CWebHandler():
-_stop(false)
+//////////////////////////////////////////////////////////////////////////////////////////////
+// Route Registration
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+void CWebHandler::RegisterRoutes(httplib::SSLServer& server)
 {
-	this->setName("WEB Handler");
-}
+	// Session (no auth)
+	server.Post("/api/login",   ApiLogin);
+	server.Get("/api/session",  ApiSessionCheck);
+	server.Post("/api/logout",  ApiLogout);
 
-CWebHandler::~CWebHandler()
-{
-}
+	// Data (require auth)
+	server.Get("/api/history",             ApiGetGlobalHistory);
+	server.Get(R"(/api/history/(.+))",     ApiGetAddressHistory);
+	server.Post("/api/eib/send",           ApiSendEibCommand);
+	server.Post("/api/eib/schedule",       ApiScheduleCommand);
 
-void CWebHandler::Close()
-{
-	do
-	{
-		JTCSynchronized sync(*this);
-		//at this point we sure the handler called "wait".
-		_stop = true;
-		this->notify();
-	}while(0);
-
-	//now, when monitor acuqired we can be sure the the hanlder is dead...
-	JTCSynchronized sync(*this);
-}
-
-void CWebHandler::run()
-{
-	JTCSynchronized sync(*this);
-
-	char buffer[MAX_HTTP_REQUEST_SIZE];
-	CHttpReply reply;
-	CDataBuffer reply_buf;
-
-	while (!_stop)
-	{
-		this->wait();
-
-		InitReply(reply);
-
-		if(_job_queue.size() == 0){
-			continue;
-		}
-
-		TCPSocket* sock = _job_queue.front();
-
-		START_TRY
-			HandleRequest(sock, buffer,reply);
-		END_TRY_START_CATCH(e)
-			SetJsonError(reply, e.what());
-			LOG_ERROR("[WEB Handler] %s", e.what());
-		END_CATCH
-
-		reply.Finalize(reply_buf);
-		sock->Send(reply_buf.GetBuffer(),reply_buf.GetLength());
-		reply.Reset();
-		memset(buffer,0,MAX_HTTP_REQUEST_SIZE);
-		//remove this job from queue
-		_job_queue.pop();
-
-		if (sock != NULL){
-			delete sock;
-		}
-	}
-}
-
-void CWebHandler::InitReply(CHttpReply& reply)
-{
-	reply.RemoveAllHeaders();
-	reply.SetContentType(CT_TEXT_HTML);
-	reply.SetStatusCode(STATUS_OK);
-	reply.SetVersion(HTTP_1_0);
-	reply.AddHeader("Connection","Close");
-}
-
-void CWebHandler::Signal()
-{
-	JTCSynchronized sync(*this);
-	this->notify();
-}
-
-void CWebHandler::HandleRequest(TCPSocket* sock, char* buffer,CHttpReply& reply)
-{
-	int len = 0;
-	START_TRY
-		len = sock->Recv(buffer,MAX_HTTP_REQUEST_SIZE,INFINITE);
-	END_TRY_START_CATCH_SOCKET(e)
-		CEIBServer::GetInstance().GetLog().Log(LOG_LEVEL_ERROR,"Socket exception in WEBHandler. Code: %d",e.GetErrorCode());
-	END_CATCH
-
-	if (len > MAX_HTTP_REQUEST_SIZE || len == 0){
-		return;
-	}
-
-	CHttpRequest request;
-	CHttpParser parser(request,buffer,len, *sock);
-	if (!parser.IsLegalRequest()){
-		throw CEIBException(GeneralError,"Error in request parsing");
-	}
-
-	CString uri = request.GetRequestURI();
-
-	// --- API requests (no Basic Auth required, use cookie session) ---
-	if (uri.GetLength() >= 4 && uri.SubString(0, 5) == "/api/") {
-		HandleApiRequest(request, reply);
-		return;
-	}
-
-	// --- SPA: serve index.html for root ---
-	if (uri == "/" && request.GetNumParams() == 0) {
-		HandleStaticFile("/index.html", reply);
-		return;
-	}
-
-	// --- Static file serving from www/ ---
-	if (uri.GetLength() > 1 && !uri.EndsWith(".jpg") && !uri.EndsWith(".jpeg") &&
-		!uri.EndsWith(".png") && uri != "/favicon.ico" && request.GetNumParams() == 0)
-	{
-		if (HandleStaticFile(uri, reply)) {
-			return;
-		}
-	}
-
-	// --- favicon.ico ---
-	if(uri == "/favicon.ico" && request.GetNumParams() == 0){
-		HandleFavoritsIconRequest(reply);
-		return;
-	}
-
-	// --- Image requests ---
-	if(uri.EndsWith(".jpg") || uri.EndsWith(".png") || uri.EndsWith(".jpeg"))
-	{
-		HandleImageRequest(uri.SubString(1, uri.GetLength() - 1), reply);
-		return;
-	}
-
-	// --- Redirect everything else to SPA ---
-	reply.Redirect("/");
+	// Admin (require authentication)
+	server.Get("/api/admin/users",             ApiGetUsers);
+	server.Post("/api/admin/users",            ApiSetUsers);
+	server.Get("/api/admin/interface",         ApiGetInterface);
+	server.Post("/api/admin/interface/start",  ApiInterfaceStart);
+	server.Post("/api/admin/interface/stop",   ApiInterfaceStop);
+	server.Get("/api/admin/busmon",            ApiGetBusMonAddresses);
+	server.Post("/api/admin/busmon/send",      ApiBusMonSendCmd);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// API Handler
+// JSON helpers
 //////////////////////////////////////////////////////////////////////////////////////////////
 
-bool CWebHandler::HandleApiRequest(CHttpRequest& request, CHttpReply& reply)
+void CWebHandler::SetJsonResponse(httplib::Response& res, const CString& json, int status)
 {
-	CString uri = request.GetRequestURI();
+	res.status = status;
+	res.set_header("Access-Control-Allow-Origin", "*");
+	res.set_content(std::string(json.GetBuffer(), json.GetLength()), MIME_TEXT_JSON);
+}
 
-	// Session endpoints (no auth needed)
-	if (uri == "/api/login") {
-		ApiLogin(request, reply);
-		return true;
-	}
-	if (uri == "/api/session") {
-		ApiSessionCheck(request, reply);
-		return true;
-	}
-	if (uri == "/api/logout") {
-		ApiLogout(request, reply);
-		return true;
-	}
-
-	// All other API endpoints require auth
-	CUser user;
-	if (!ApiAuthenticate(request, user)) {
-		SetJsonError(reply, "Not authenticated", STATUS_NOT_AUTHORIZED);
-		return true;
-	}
-
-	// Data endpoints
-	if (uri == "/api/history") {
-		if (!user.IsReadPolicyAllowed()) {
-			SetJsonError(reply, "Insufficient privileges", STATUS_FORBIDDEN);
-			return true;
-		}
-		ApiGetGlobalHistory(reply);
-		return true;
-	}
-	if (uri.GetLength() > 13 && uri.SubString(0, 13) == "/api/history/") {
-		if (!user.IsReadPolicyAllowed()) {
-			SetJsonError(reply, "Insufficient privileges", STATUS_FORBIDDEN);
-			return true;
-		}
-		CString address = URLEncoder::Decode(uri.SubString(13, uri.GetLength() - 13));
-		ApiGetFunctionHistory(address, reply);
-		return true;
-	}
-	if (uri == "/api/eib/send") {
-		if (!user.IsWritePolicyAllowed()) {
-			SetJsonError(reply, "Insufficient privileges", STATUS_FORBIDDEN);
-			return true;
-		}
-		ApiSendEibCommand(request, reply);
-		return true;
-	}
-	if (uri == "/api/eib/schedule") {
-		if (!user.IsWritePolicyAllowed()) {
-			SetJsonError(reply, "Insufficient privileges", STATUS_FORBIDDEN);
-			return true;
-		}
-		ApiScheduleCommand(request, reply);
-		return true;
-	}
-
-	// Admin endpoints (require authentication + admin privilege for mutations)
-	if (uri == "/api/admin/users" && request.GetMethod() == GET_M) {
-		ApiGetUsers(reply);
-		return true;
-	}
-	if (uri == "/api/admin/users" && request.GetMethod() == POST_M) {
-		if (!user.IsAdminAccessAllowed()) {
-			SetJsonError(reply, "Admin privileges required", STATUS_FORBIDDEN);
-			return true;
-		}
-		ApiSetUsers(request, reply);
-		return true;
-	}
-	if (uri == "/api/admin/interface" && request.GetMethod() == GET_M) {
-		ApiGetInterface(reply);
-		return true;
-	}
-	if (uri == "/api/admin/interface/start") {
-		if (!user.IsAdminAccessAllowed()) {
-			SetJsonError(reply, "Admin privileges required", STATUS_FORBIDDEN);
-			return true;
-		}
-		ApiInterfaceStart(reply);
-		return true;
-	}
-	if (uri == "/api/admin/interface/stop") {
-		if (!user.IsAdminAccessAllowed()) {
-			SetJsonError(reply, "Admin privileges required", STATUS_FORBIDDEN);
-			return true;
-		}
-		ApiInterfaceStop(reply);
-		return true;
-	}
-	if (uri == "/api/admin/busmon" && request.GetMethod() == GET_M) {
-		ApiGetBusMonAddresses(reply);
-		return true;
-	}
-	if (uri == "/api/admin/busmon/send") {
-		if (!user.IsAdminAccessAllowed()) {
-			SetJsonError(reply, "Admin privileges required", STATUS_FORBIDDEN);
-			return true;
-		}
-		ApiBusMonSendCmd(request, reply);
-		return true;
-	}
-
-	SetJsonError(reply, "Unknown API endpoint", STATUS_NOT_FOUND);
-	return true;
+void CWebHandler::SetJsonError(httplib::Response& res, const CString& message, int status)
+{
+	SetJsonResponse(res, CXmlJsonUtil::JsonError(message), status);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -285,34 +77,43 @@ CString CWebHandler::GenerateSessionId()
 	return sid;
 }
 
-CString CWebHandler::GetSessionCookie(CHttpRequest& request)
+CString CWebHandler::GetSessionCookie(const httplib::Request& req)
 {
-	CHttpCookie cookie;
-	if (request.GetCookie("WEBSESSIONID", cookie)) {
-		return cookie.GetValue();
-	}
-	return EMPTY_STRING;
+	std::string cookie_hdr = req.get_header_value("Cookie");
+	if (cookie_hdr.empty()) return EMPTY_STRING;
+
+	// Parse "WEBSESSIONID=<value>" from the Cookie header
+	std::string key = "WEBSESSIONID=";
+	size_t pos = cookie_hdr.find(key);
+	if (pos == std::string::npos) return EMPTY_STRING;
+
+	size_t start = pos + key.length();
+	size_t end = cookie_hdr.find(';', start);
+	if (end == std::string::npos) end = cookie_hdr.length();
+
+	std::string val = cookie_hdr.substr(start, end - start);
+	return CString(val.c_str());
 }
 
-void CWebHandler::ApiLogin(CHttpRequest& request, CHttpReply& reply)
+void CWebHandler::ApiLogin(const httplib::Request& req, httplib::Response& res)
 {
-	CString body_str((const char*)request.GetContent().GetBuffer(), request.GetContent().GetLength());
+	CString body_str(req.body.c_str(), (int)req.body.length());
 	CString user_name = GetJsonField(body_str, "user");
 	CString password = GetJsonField(body_str, "pass");
 
 	if (user_name.GetLength() == 0 || password.GetLength() == 0) {
-		SetJsonError(reply, "Missing user or pass", STATUS_NOT_AUTHORIZED);
+		SetJsonError(res, "Missing user or pass", 401);
 		return;
 	}
 
 	CUser user;
 	if (!CEIBServer::GetInstance().GetUsersDB().AuthenticateUser(user_name, password, user)) {
-		SetJsonError(reply, "Invalid credentials", STATUS_NOT_AUTHORIZED);
+		SetJsonError(res, "Invalid credentials", 401);
 		return;
 	}
 
 	if (!user.IsWebAccessAllowed()) {
-		SetJsonError(reply, "Web access not allowed for this user", STATUS_FORBIDDEN);
+		SetJsonError(res, "Web access not allowed for this user", 403);
 		return;
 	}
 
@@ -325,16 +126,13 @@ void CWebHandler::ApiLogin(CHttpRequest& request, CHttpReply& reply)
 	session.last_access = session.created;
 
 	{
-		JTCSynchronized sync(_session_mutex);
+		std::lock_guard<std::mutex> lock(_session_mutex);
 		_sessions[sid] = session;
 	}
 
 	// Set cookie
-	CHttpCookie cookie;
-	cookie.SetName("WEBSESSIONID");
-	cookie.SetValue(sid);
-	cookie.SetPath("/");
-	reply.AddCookie(cookie);
+	CString cookie_val = CString("WEBSESSIONID=") + sid + "; Path=/";
+	res.set_header("Set-Cookie", cookie_val.GetBuffer());
 
 	CString json = "{\"status\":\"ok\",\"user\":\"";
 	json += CXmlJsonUtil::JsonEscape(user_name);
@@ -346,36 +144,32 @@ void CWebHandler::ApiLogin(CHttpRequest& request, CHttpReply& reply)
 	json += user.IsAdminAccessAllowed() ? "true" : "false";
 	json += "}";
 
-	SetJsonResponse(reply, json);
+	SetJsonResponse(res, json);
 }
 
-void CWebHandler::ApiLogout(CHttpRequest& request, CHttpReply& reply)
+void CWebHandler::ApiLogout(const httplib::Request& req, httplib::Response& res)
 {
-	CString sid = GetSessionCookie(request);
+	CString sid = GetSessionCookie(req);
 	if (sid.GetLength() > 0) {
-		JTCSynchronized sync(_session_mutex);
+		std::lock_guard<std::mutex> lock(_session_mutex);
 		_sessions.erase(sid);
 	}
 
 	// Clear cookie
-	CHttpCookie cookie;
-	cookie.SetName("WEBSESSIONID");
-	cookie.SetValue("");
-	cookie.SetPath("/");
-	reply.AddCookie(cookie);
+	res.set_header("Set-Cookie", "WEBSESSIONID=; Path=/");
 
-	SetJsonResponse(reply, CXmlJsonUtil::JsonOk());
+	SetJsonResponse(res, CXmlJsonUtil::JsonOk());
 }
 
-void CWebHandler::ApiSessionCheck(CHttpRequest& request, CHttpReply& reply)
+void CWebHandler::ApiSessionCheck(const httplib::Request& req, httplib::Response& res)
 {
 	CUser user;
-	if (ApiAuthenticate(request, user)) {
-		CString sid = GetSessionCookie(request);
+	if (Authenticate(req, user)) {
+		CString sid = GetSessionCookie(req);
 		CString user_name;
 		{
-			JTCSynchronized sync(_session_mutex);
-			map<CString, WebSession>::iterator it = _sessions.find(sid);
+			std::lock_guard<std::mutex> lock(_session_mutex);
+			std::map<CString, WebSession>::iterator it = _sessions.find(sid);
 			if (it != _sessions.end()) {
 				user_name = it->second.user_name;
 			}
@@ -389,28 +183,33 @@ void CWebHandler::ApiSessionCheck(CHttpRequest& request, CHttpReply& reply)
 		json += ",\"admin\":";
 		json += user.IsAdminAccessAllowed() ? "true" : "false";
 		json += "}";
-		SetJsonResponse(reply, json);
+		SetJsonResponse(res, json);
 	} else {
-		SetJsonResponse(reply, "{\"authenticated\":false}");
+		SetJsonResponse(res, "{\"authenticated\":false}");
 	}
 }
 
-bool CWebHandler::ApiAuthenticate(CHttpRequest& request, CUser& user)
+bool CWebHandler::Authenticate(const httplib::Request& req, CUser& user)
 {
-	CString sid = GetSessionCookie(request);
+	CString sid = GetSessionCookie(req);
 	if (sid.GetLength() == 0) {
 		// Also try Basic Auth for API backward compat
-		CHttpHeader auth;
-		if (request.GetHeader(AUTHORIZATION_HEADER, auth)) {
+		std::string auth_hdr = req.get_header_value("Authorization");
+		if (!auth_hdr.empty()) {
 			CDigest digest(ALGORITHM_BASE64);
-			size_t index = auth.GetValue().Find("Basic ");
-			if (index != string::npos) {
-				CString cipher = auth.GetValue().SubString(index + 6, auth.GetValue().GetLength() - index - 6);
+			size_t index = auth_hdr.find("Basic ");
+			if (index != std::string::npos) {
+				CString cipher(auth_hdr.c_str() + index + 6);
 				CString clear;
 				if (digest.Decode(cipher, clear)) {
-					CHttpHeader login(clear);
-					if (CEIBServer::GetInstance().GetUsersDB().AuthenticateUser(login.GetName(), login.GetValue(), user)) {
-						return true;
+					// clear is "user:pass"
+					size_t colon = std::string(clear.GetBuffer()).find(':');
+					if (colon != std::string::npos) {
+						CString uname(clear.GetBuffer(), (int)colon);
+						CString pass(clear.GetBuffer() + colon + 1);
+						if (CEIBServer::GetInstance().GetUsersDB().AuthenticateUser(uname, pass, user)) {
+							return true;
+						}
 					}
 				}
 			}
@@ -418,8 +217,8 @@ bool CWebHandler::ApiAuthenticate(CHttpRequest& request, CUser& user)
 		return false;
 	}
 
-	JTCSynchronized sync(_session_mutex);
-	map<CString, WebSession>::iterator it = _sessions.find(sid);
+	std::lock_guard<std::mutex> lock(_session_mutex);
+	std::map<CString, WebSession>::iterator it = _sessions.find(sid);
 	if (it == _sessions.end()) {
 		return false;
 	}
@@ -434,17 +233,21 @@ bool CWebHandler::ApiAuthenticate(CHttpRequest& request, CUser& user)
 	it->second.last_access = now;
 	CString user_name = it->second.user_name;
 
-	// For session-based auth, we already validated the password at login time.
-	// Just look up the user record to get privileges.
 	return CEIBServer::GetInstance().GetUsersDB().GetRecord(user_name, user);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// Admin API endpoints (direct access to conf classes - no proxy needed)
+// Admin API endpoints
 //////////////////////////////////////////////////////////////////////////////////////////////
 
-void CWebHandler::ApiGetUsers(CHttpReply& reply)
+void CWebHandler::ApiGetUsers(const httplib::Request& req, httplib::Response& res)
 {
+	CUser user;
+	if (!Authenticate(req, user)) {
+		SetJsonError(res, "Not authenticated", 401);
+		return;
+	}
+
 	START_TRY
 		CEIBServerUsersConf conf;
 		conf.GetConnectedClients();
@@ -452,113 +255,170 @@ void CWebHandler::ApiGetUsers(CHttpReply& reply)
 		conf.ToXml(xml_buf);
 		CString xml((const char*)xml_buf.GetBuffer(), xml_buf.GetLength());
 		CString json = CXmlJsonUtil::XmlToJson(xml);
-		SetJsonResponse(reply, json);
+		SetJsonResponse(res, json);
 	END_TRY_START_CATCH(e)
-		SetJsonError(reply, e.what());
+		SetJsonError(res, e.what());
 	END_CATCH
 }
 
-void CWebHandler::ApiSetUsers(CHttpRequest& request, CHttpReply& reply)
+void CWebHandler::ApiSetUsers(const httplib::Request& req, httplib::Response& res)
 {
+	CUser user;
+	if (!Authenticate(req, user)) {
+		SetJsonError(res, "Not authenticated", 401);
+		return;
+	}
+	if (!user.IsAdminAccessAllowed()) {
+		SetJsonError(res, "Admin privileges required", 403);
+		return;
+	}
+
 	START_TRY
 		CEIBServerUsersConf conf;
-		conf.FromXml(request.GetContent());
+		CDataBuffer body_buf;
+		body_buf.Add(req.body.c_str(), (int)req.body.length());
+		conf.FromXml(body_buf);
 		conf.SetConnectedClients();
-		SetJsonResponse(reply, CXmlJsonUtil::JsonOk());
+		SetJsonResponse(res, CXmlJsonUtil::JsonOk());
 	END_TRY_START_CATCH(e)
-		SetJsonError(reply, e.what());
+		SetJsonError(res, e.what());
 	END_CATCH
 }
 
-void CWebHandler::ApiGetInterface(CHttpReply& reply)
+void CWebHandler::ApiGetInterface(const httplib::Request& req, httplib::Response& res)
 {
+	CUser user;
+	if (!Authenticate(req, user)) {
+		SetJsonError(res, "Not authenticated", 401);
+		return;
+	}
+
 	START_TRY
 		CEIBInterfaceConf conf;
 		CDataBuffer xml_buf;
 		conf.ToXml(xml_buf);
 		CString xml((const char*)xml_buf.GetBuffer(), xml_buf.GetLength());
 		CString json = CXmlJsonUtil::XmlToJson(xml);
-		SetJsonResponse(reply, json);
+		SetJsonResponse(res, json);
 	END_TRY_START_CATCH(e)
-		SetJsonError(reply, e.what());
+		SetJsonError(res, e.what());
 	END_CATCH
 }
 
-void CWebHandler::ApiInterfaceStart(CHttpReply& reply)
+void CWebHandler::ApiInterfaceStart(const httplib::Request& req, httplib::Response& res)
 {
+	CUser user;
+	if (!Authenticate(req, user)) {
+		SetJsonError(res, "Not authenticated", 401);
+		return;
+	}
+	if (!user.IsAdminAccessAllowed()) {
+		SetJsonError(res, "Admin privileges required", 403);
+		return;
+	}
+
 	START_TRY
 		CEIBInterfaceConf conf;
 		CDataBuffer xml_buf;
 		conf.StartInterface(xml_buf);
 		CString xml((const char*)xml_buf.GetBuffer(), xml_buf.GetLength());
 		CString json = CXmlJsonUtil::XmlToJson(xml);
-		SetJsonResponse(reply, json);
+		SetJsonResponse(res, json);
 	END_TRY_START_CATCH(e)
-		SetJsonError(reply, e.what());
+		SetJsonError(res, e.what());
 	END_CATCH
 }
 
-void CWebHandler::ApiInterfaceStop(CHttpReply& reply)
+void CWebHandler::ApiInterfaceStop(const httplib::Request& req, httplib::Response& res)
 {
+	CUser user;
+	if (!Authenticate(req, user)) {
+		SetJsonError(res, "Not authenticated", 401);
+		return;
+	}
+	if (!user.IsAdminAccessAllowed()) {
+		SetJsonError(res, "Admin privileges required", 403);
+		return;
+	}
+
 	START_TRY
 		CEIBInterfaceConf conf;
 		CDataBuffer xml_buf;
 		conf.StopInterface(xml_buf);
 		CString xml((const char*)xml_buf.GetBuffer(), xml_buf.GetLength());
 		CString json = CXmlJsonUtil::XmlToJson(xml);
-		SetJsonResponse(reply, json);
+		SetJsonResponse(res, json);
 	END_TRY_START_CATCH(e)
-		SetJsonError(reply, e.what());
+		SetJsonError(res, e.what());
 	END_CATCH
 }
 
-void CWebHandler::ApiGetBusMonAddresses(CHttpReply& reply)
+void CWebHandler::ApiGetBusMonAddresses(const httplib::Request& req, httplib::Response& res)
 {
+	CUser user;
+	if (!Authenticate(req, user)) {
+		SetJsonError(res, "Not authenticated", 401);
+		return;
+	}
+
 	START_TRY
 		CEIBBusMonAddrListConf conf;
 		CDataBuffer xml_buf;
 		conf.ToXml(xml_buf);
 		CString xml((const char*)xml_buf.GetBuffer(), xml_buf.GetLength());
 		CString json = CXmlJsonUtil::XmlToJson(xml);
-		SetJsonResponse(reply, json);
+		SetJsonResponse(res, json);
 	END_TRY_START_CATCH(e)
-		SetJsonError(reply, e.what());
+		SetJsonError(res, e.what());
 	END_CATCH
 }
 
-void CWebHandler::ApiBusMonSendCmd(CHttpRequest& request, CHttpReply& reply)
+void CWebHandler::ApiBusMonSendCmd(const httplib::Request& req, httplib::Response& res)
 {
-	CString body_str((const char*)request.GetContent().GetBuffer(), request.GetContent().GetLength());
+	CUser user;
+	if (!Authenticate(req, user)) {
+		SetJsonError(res, "Not authenticated", 401);
+		return;
+	}
+	if (!user.IsAdminAccessAllowed()) {
+		SetJsonError(res, "Admin privileges required", 403);
+		return;
+	}
+
+	CString body_str(req.body.c_str(), (int)req.body.length());
 	CString addr = GetJsonField(body_str, "address");
 	CString val = GetJsonField(body_str, "value");
 	CString mode = GetJsonField(body_str, "mode");
 
 	if (mode.GetLength() == 0) mode = "3"; // WAIT_FOR_CONFIRM default
 
-	// Build an HTTP request with form params as expected by SendCmdToAddr
-	CHttpRequest cmd_request;
-	cmd_request.AddParameter("SND_DEST_ADDR", addr);
-	cmd_request.AddParameter("SND_VAL", val);
-	cmd_request.AddParameter("SND_MODE", mode);
-
 	START_TRY
 		CEIBBusMonAddrListConf conf;
-		conf.SendCmdToAddr(cmd_request);
-		SetJsonResponse(reply, CXmlJsonUtil::JsonOk());
+		conf.SendCmdToAddr(addr, val, mode);
+		SetJsonResponse(res, CXmlJsonUtil::JsonOk());
 	END_TRY_START_CATCH(e)
-		SetJsonError(reply, e.what());
+		SetJsonError(res, e.what());
 	END_CATCH
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// Data API endpoints (direct StatsDB access)
+// Data API endpoints
 //////////////////////////////////////////////////////////////////////////////////////////////
 
-void CWebHandler::ApiGetGlobalHistory(CHttpReply& reply)
+void CWebHandler::ApiGetGlobalHistory(const httplib::Request& req, httplib::Response& res)
 {
+	CUser user;
+	if (!Authenticate(req, user)) {
+		SetJsonError(res, "Not authenticated", 401);
+		return;
+	}
+	if (!user.IsReadPolicyAllowed()) {
+		SetJsonError(res, "Insufficient privileges", 403);
+		return;
+	}
+
 	CStatsDB& db = CEIBServer::GetInstance().GetStatsDB();
 
-	// Build JSON from StatsDB
 	CString json = "{\"records\":[";
 	map<CEibAddress, CEIBObjectRecord>& records = db.GetData();
 	bool first = true;
@@ -587,17 +447,29 @@ void CWebHandler::ApiGetGlobalHistory(CHttpReply& reply)
 	}
 	json += "]}";
 
-	SetJsonResponse(reply, json);
+	SetJsonResponse(res, json);
 }
 
-void CWebHandler::ApiGetFunctionHistory(const CString& address, CHttpReply& reply)
+void CWebHandler::ApiGetAddressHistory(const httplib::Request& req, httplib::Response& res)
 {
+	CUser user;
+	if (!Authenticate(req, user)) {
+		SetJsonError(res, "Not authenticated", 401);
+		return;
+	}
+	if (!user.IsReadPolicyAllowed()) {
+		SetJsonError(res, "Insufficient privileges", 403);
+		return;
+	}
+
+	CString address = URLEncoder::Decode(CString(req.matches[1].str().c_str()));
+
 	CStatsDB& db = CEIBServer::GetInstance().GetStatsDB();
 
 	CEibAddress addr(address);
 	CEIBObjectRecord rec;
 	if (!db.GetRecord(addr, rec)) {
-		SetJsonError(reply, CString("No entries found for address: ") + address, STATUS_NOT_FOUND);
+		SetJsonError(res, CString("No entries found for address: ") + address, 404);
 		return;
 	}
 
@@ -620,52 +492,72 @@ void CWebHandler::ApiGetFunctionHistory(const CString& address, CHttpReply& repl
 	}
 	json += "]}";
 
-	SetJsonResponse(reply, json);
+	SetJsonResponse(res, json);
 }
 
-void CWebHandler::ApiSendEibCommand(CHttpRequest& request, CHttpReply& reply)
+void CWebHandler::ApiSendEibCommand(const httplib::Request& req, httplib::Response& res)
 {
-	CString body_str((const char*)request.GetContent().GetBuffer(), request.GetContent().GetLength());
+	CUser user;
+	if (!Authenticate(req, user)) {
+		SetJsonError(res, "Not authenticated", 401);
+		return;
+	}
+	if (!user.IsWritePolicyAllowed()) {
+		SetJsonError(res, "Insufficient privileges", 403);
+		return;
+	}
+
+	CString body_str(req.body.c_str(), (int)req.body.length());
 	CString addr = GetJsonField(body_str, "address");
 	CString apci_str = GetJsonField(body_str, "value");
 
 	if (addr.GetLength() == 0 || apci_str.GetLength() == 0) {
-		SetJsonError(reply, "Missing address or value");
+		SetJsonError(res, "Missing address or value");
 		return;
 	}
 
 	unsigned char apci[MAX_EIB_VALUE_LEN];
 	unsigned char apci_len;
 	if (!GetByteArrayFromHexString(apci_str, apci, apci_len)) {
-		SetJsonError(reply, "Invalid hex value");
+		SetJsonError(res, "Invalid hex value");
 		return;
 	}
 
 	CString err;
 	if (!SendEIBCommand(addr, apci, apci_len, err)) {
-		SetJsonError(reply, err);
+		SetJsonError(res, err);
 		return;
 	}
 
-	SetJsonResponse(reply, CXmlJsonUtil::JsonOk());
+	SetJsonResponse(res, CXmlJsonUtil::JsonOk());
 }
 
-void CWebHandler::ApiScheduleCommand(CHttpRequest& request, CHttpReply& reply)
+void CWebHandler::ApiScheduleCommand(const httplib::Request& req, httplib::Response& res)
 {
-	CString body_str((const char*)request.GetContent().GetBuffer(), request.GetContent().GetLength());
+	CUser user;
+	if (!Authenticate(req, user)) {
+		SetJsonError(res, "Not authenticated", 401);
+		return;
+	}
+	if (!user.IsWritePolicyAllowed()) {
+		SetJsonError(res, "Insufficient privileges", 403);
+		return;
+	}
+
+	CString body_str(req.body.c_str(), (int)req.body.length());
 	CString addr = GetJsonField(body_str, "address");
 	CString apci_str = GetJsonField(body_str, "value");
 	CString datetime_str = GetJsonField(body_str, "datetime");
 
 	if (addr.GetLength() == 0 || apci_str.GetLength() == 0 || datetime_str.GetLength() == 0) {
-		SetJsonError(reply, "Missing address, value, or datetime");
+		SetJsonError(res, "Missing address, value, or datetime");
 		return;
 	}
 
 	unsigned char apci[MAX_EIB_VALUE_LEN];
 	unsigned char apci_len;
 	if (!GetByteArrayFromHexString(apci_str, apci, apci_len)) {
-		SetJsonError(reply, "Invalid hex value");
+		SetJsonError(res, "Invalid hex value");
 		return;
 	}
 
@@ -673,164 +565,15 @@ void CWebHandler::ApiScheduleCommand(CHttpRequest& request, CHttpReply& reply)
 	CString err;
 	if (!CEIBServer::GetInstance().GetScheduler().AddScheduledCommand(
 			datetime, CEibAddress(addr), apci, apci_len, err)) {
-		SetJsonError(reply, err);
+		SetJsonError(res, err);
 		return;
 	}
 
-	SetJsonResponse(reply, CXmlJsonUtil::JsonOk());
+	SetJsonResponse(res, CXmlJsonUtil::JsonOk());
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// Static File Serving
-//////////////////////////////////////////////////////////////////////////////////////////////
-
-bool CWebHandler::HandleStaticFile(const CString& path, CHttpReply& reply)
-{
-	CString www_root = CEIBServer::GetInstance().GetConfig().GetWwwRoot();
-	CString file_path = www_root + path;
-
-	// Security: prevent path traversal
-	if (file_path.Find("..") != string::npos) {
-		return false;
-	}
-
-	int total_size = 0;
-	START_TRY
-		FillRawFile(file_path, reply.GetContent(), total_size);
-	END_TRY_START_CATCH(e)
-		// File not found - try SPA fallback (serve index.html for client-side routing)
-		START_TRY
-			CString index_path = www_root + "/index.html";
-			FillRawFile(index_path, reply.GetContent(), total_size);
-			reply.SetStatusCode(STATUS_OK);
-			reply.SetVersion(HTTP_1_0);
-			reply.AddHeader("Content-Type", MIME_TEXT_HTML);
-			return true;
-		END_TRY_START_CATCH(e2)
-			return false;
-		END_CATCH
-	END_CATCH
-
-	CString mime = GetMimeType(file_path);
-	reply.SetStatusCode(STATUS_OK);
-	reply.SetVersion(HTTP_1_0);
-	reply.AddHeader("Content-Type", mime);
-
-	return true;
-}
-
-CString CWebHandler::GetMimeType(const CString& file_path)
-{
-	if (file_path.EndsWith(".html") || file_path.EndsWith(".htm")) return MIME_TEXT_HTML;
-	if (file_path.EndsWith(".css")) return MIME_TEXT_CSS;
-	if (file_path.EndsWith(".js")) return MIME_TEXT_JS;
-	if (file_path.EndsWith(".json")) return MIME_TEXT_JSON;
-	if (file_path.EndsWith(".png")) return MIME_IMAGE_PNG;
-	if (file_path.EndsWith(".jpg") || file_path.EndsWith(".jpeg")) return MIME_IMAGE_JPEG;
-	if (file_path.EndsWith(".svg")) return MIME_IMAGE_SVG;
-	if (file_path.EndsWith(".ico")) return MIME_IMAGE_ICO;
-	return "application/octet-stream";
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-// JSON helpers
-//////////////////////////////////////////////////////////////////////////////////////////////
-
-void CWebHandler::SetJsonResponse(CHttpReply& reply, const CString& json, HTTP_STATUS_CODE status)
-{
-	reply.SetStatusCode(status);
-	reply.SetVersion(HTTP_1_0);
-	reply.AddHeader("Content-Type", MIME_TEXT_JSON);
-	reply.AddHeader("Access-Control-Allow-Origin", "*");
-	reply.GetContent().Clear();
-	reply.GetContent().Add(json.GetBuffer(), json.GetLength());
-}
-
-void CWebHandler::SetJsonError(CHttpReply& reply, const CString& message, HTTP_STATUS_CODE status)
-{
-	SetJsonResponse(reply, CXmlJsonUtil::JsonError(message), status);
-}
-
-CString CWebHandler::GetJsonField(const CString& json, const CString& field)
-{
-	// Simple JSON field extraction: finds "field":"value"
-	CString search = "\"";
-	search += field;
-	search += "\":\"";
-
-	size_t pos = json.Find(search);
-	if (pos == string::npos) return EMPTY_STRING;
-
-	pos += search.GetLength();
-	size_t end = json.Find("\"", pos);
-	if (end == string::npos) return EMPTY_STRING;
-
-	return json.SubString(pos, end - pos);
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-// Image and file serving
-//////////////////////////////////////////////////////////////////////////////////////////////
-
-void CWebHandler::HandleImageRequest(const CString& file_name, CHttpReply& reply)
-{
-	if(file_name.EndsWith(".jpg") || file_name.EndsWith(".jpeg")){
-		reply.SetContentType(CT_IMAGE_JPEG);
-	}else if(file_name.EndsWith(".png")){
-		reply.SetContentType(CT_IMAGE_PNG);
-	}else{
-		reply.SetVersion(HTTP_1_0);
-		reply.SetStatusCode(STATUS_NOT_FOUND);
-		return;
-	}
-
-	reply.SetVersion(HTTP_1_0);
-	reply.SetStatusCode(STATUS_OK);
-	reply.AddHeader("Accept-Ranges","bytes");
-
-	const CString& file = CEIBServer::GetInstance().GetConfig().GetImagesFolder() + PATH_DELIM + file_name;
-	int clen;
-	CWebHandler::FillRawFile(file, reply.GetContent(), clen);
-}
-
-void CWebHandler::HandleFavoritsIconRequest(CHttpReply& reply)
-{
-	reply.SetVersion(HTTP_1_0);
-	reply.SetStatusCode(STATUS_OK);
-	reply.SetContentType(CT_IMAGE_X_ICON);
-
-	reply.AddHeader("Accept-Ranges","bytes");
-
-	const CString& icon_file = CEIBServer::GetInstance().GetConfig().GetImagesFolder() + PATH_DELIM + "favicon.ico";
-	int clen;
-	CWebHandler::FillRawFile(icon_file, reply.GetContent(), clen);
-}
-
-void CWebHandler::FillRawFile(const CString& file_name, CDataBuffer& buf, int& total_size)
-{
-	buf.Clear();
-	total_size = 0;
-	ifstream file (file_name.GetBuffer(), ios::in | ios::binary | ios::ate);
-	if(file.is_open()){
-		int size;
-		char memblock[1024];
-		file.seekg(0, ios::beg);
-		while(file.good())
-		{
-			file.read(memblock, 1024);
-			size = (int)file.gcount();
-			if (!size) break;
-			total_size += size;
-			buf.Add(memblock,size);
-		}
-		file.close();
-	}else{
-		throw CEIBException(FileError, "[WEB Handler] Cannot find file %s", file_name.GetBuffer());
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-// EIB command sending (direct via CEIBInterface)
+// EIB command sending
 //////////////////////////////////////////////////////////////////////////////////////////////
 
 bool CWebHandler::SendEIBCommand(const CString& addr, unsigned char *apci, unsigned char apci_len, CString& err)
@@ -867,6 +610,22 @@ bool CWebHandler::SendEIBCommand(const CString& addr, unsigned char *apci, unsig
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Utility functions
 //////////////////////////////////////////////////////////////////////////////////////////////
+
+CString CWebHandler::GetJsonField(const CString& json, const CString& field)
+{
+	CString search = "\"";
+	search += field;
+	search += "\":\"";
+
+	size_t pos = json.Find(search);
+	if (pos == string::npos) return EMPTY_STRING;
+
+	pos += search.GetLength();
+	size_t end = json.Find("\"", pos);
+	if (end == string::npos) return EMPTY_STRING;
+
+	return json.SubString(pos, end - pos);
+}
 
 bool CWebHandler::GetByteArrayFromHexString(const CString& str, unsigned char *val, unsigned char &val_len)
 {
@@ -920,10 +679,15 @@ int CWebHandler::GetDigitValue (char digit)
 	return -1;
 }
 
-void CWebHandler::AddToJobQueue(TCPSocket* job)
+CString CWebHandler::GetMimeType(const CString& file_path)
 {
-	JTCSynchronized sync(*this);
-
-	ASSERT_ERROR(job != NULL,"NULL Socket cannot be added to queue")
-	_job_queue.push(job);
+	if (file_path.EndsWith(".html") || file_path.EndsWith(".htm")) return MIME_TEXT_HTML;
+	if (file_path.EndsWith(".css")) return MIME_TEXT_CSS;
+	if (file_path.EndsWith(".js")) return MIME_TEXT_JS;
+	if (file_path.EndsWith(".json")) return MIME_TEXT_JSON;
+	if (file_path.EndsWith(".png")) return MIME_IMAGE_PNG;
+	if (file_path.EndsWith(".jpg") || file_path.EndsWith(".jpeg")) return MIME_IMAGE_JPEG;
+	if (file_path.EndsWith(".svg")) return MIME_IMAGE_SVG;
+	if (file_path.EndsWith(".ico")) return MIME_IMAGE_ICO;
+	return "application/octet-stream";
 }

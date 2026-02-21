@@ -1,32 +1,28 @@
 #ifndef __DISPATCHER_HEADER__
 #define __DISPATCHER_HEADER__
 
-#include "JTC.h"
-#include "Socket.h"
-#include "ServerConfig.h"
-#include "WebHandler.h"
+#include <httplib.h>
+#include <thread>
+#include <memory>
+#include "CString.h"
 
-#define NUM_HANDLERS 2
-
-class CDispatcher : public JTCThread, public JTCMonitor
-{
+class CDispatcher {
 public:
 	CDispatcher();
-	virtual ~CDispatcher();
+	~CDispatcher();
 
-	void Init();
-	void Close();
-	virtual void run();
-	inline const CString& GetServerAddress() const{ return _server_address;};
-	inline int GetServerPort() const{ return _server_sock->GetLocalPort();};
+	void Init();   // creates SSLServer, registers all routes & mount points
+	void Start();  // launches listen() in background thread
+	void Close();  // calls server->stop(), joins thread
+
+	int GetServerPort() const { return _port; }
 
 private:
-	TCPServerSocket* _server_sock;
-	CWebHandler* _handlers[NUM_HANDLERS];
-	int _num_handlers;
-	CString _server_address;
-	bool _stop;
+	void RegisterRoutes();
+
+	std::unique_ptr<httplib::SSLServer> _server;
+	std::thread _listen_thread;
+	int _port;
 };
 
 #endif
-

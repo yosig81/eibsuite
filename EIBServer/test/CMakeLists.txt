@@ -26,7 +26,7 @@ target_include_directories(eibserver_tests PRIVATE
 )
 
 set_target_properties(eibserver_tests PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-target_link_libraries(eibserver_tests PRIVATE EIBStdLib GTest::gtest GTest::gtest_main)
+target_link_libraries(eibserver_tests PRIVATE EIBStdLib GTest::gtest GTest::gtest_main httplib::httplib OpenSSL::SSL OpenSSL::Crypto)
 
 gtest_discover_tests(eibserver_tests)
 
@@ -39,6 +39,7 @@ if(BUILD_EMULATOR)
         integration/DispatcherNullGuardTest.cpp
         integration/EibCommunicationTest.cpp
         integration/GenerateIndicationsTest.cpp
+        integration/HttpsRegressionTest.cpp
         integration/IntegrationMain.cpp
         integration/PacketFilterIntegrationTest.cpp
         integration/ServerLifecycleTest.cpp
@@ -81,7 +82,7 @@ if(BUILD_EMULATOR)
     )
 
     set_target_properties(eibserver_integration_tests PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-    target_link_libraries(eibserver_integration_tests PRIVATE EIBStdLib GTest::gtest)
+    target_link_libraries(eibserver_integration_tests PRIVATE EIBStdLib GTest::gtest httplib::httplib OpenSSL::SSL OpenSSL::Crypto)
 
     # -------------------------------------------------------------------
     # Working directory setup for integration tests
@@ -101,6 +102,20 @@ if(BUILD_EMULATOR)
     file(MAKE_DIRECTORY ${INTEG_WORKDIR}/www)
     file(MAKE_DIRECTORY ${INTEG_WORKDIR}/Images)
 
+    # Generate self-signed TLS certificate for integration tests
+    execute_process(
+        COMMAND openssl req -x509 -newkey rsa:2048
+            -keyout ${INTEG_WORKDIR}/conf/test.key
+            -out ${INTEG_WORKDIR}/conf/test.crt
+            -days 365 -nodes
+            -subj "/CN=localhost"
+        RESULT_VARIABLE OPENSSL_RESULT
+        ERROR_QUIET
+    )
+    if(NOT OPENSSL_RESULT EQUAL 0)
+        message(WARNING "Failed to generate test TLS certificate; integration tests may fail")
+    endif()
+
     file(WRITE ${INTEG_WORKDIR}/conf/EIB.conf
 "[EIB-GENERAL]
 EIB_INITIAL_KEY = EIBKEY
@@ -118,6 +133,8 @@ WEB_SERVER_PORT = 18080
 WWW_ROOT = ./www
 IMAGES_FOLDER = ./Images
 WEB_LISTEN_INTERFACE = ${LOOPBACK_IF}
+TLS_CERT_FILE = ./conf/test.crt
+TLS_KEY_FILE = ./conf/test.key
 ")
 
     file(WRITE ${INTEG_WORKDIR}/conf/Users.db

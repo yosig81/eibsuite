@@ -1,19 +1,16 @@
 #ifndef __WEB_HANDLER_HEADER__
 #define __WEB_HANDLER_HEADER__
 
-#include <queue>
+#include <map>
+#include <mutex>
+#include <httplib.h>
 #include "CString.h"
-#include "JTC.h"
-#include "CMutex.h"
-#include "Socket.h"
-#include "HttpParser.h"
-#include "Digest.h"
-#include "StatsDB.h"
 #include "UsersDB.h"
 #include "XmlJsonUtil.h"
-#include "Html.h"
 
-#define MAX_HTTP_REQUEST_SIZE 8192
+#ifndef MAX_EIB_VALUE_LEN
+#define MAX_EIB_VALUE_LEN 16
+#endif
 
 // Session entry for cookie-based auth
 struct WebSession {
@@ -23,77 +20,54 @@ struct WebSession {
 	time_t last_access;
 };
 
-class CWebHandler : public JTCThread, public JTCMonitor
-{
+class CWebHandler {
 public:
-	CWebHandler();
-	virtual ~CWebHandler();
-
-	virtual void run();
-	void AddToJobQueue(TCPSocket* job);
-	void Close();
-	void Signal();
+	// Route registration (called from CDispatcher::RegisterRoutes)
+	static void RegisterRoutes(httplib::SSLServer& server);
 
 private:
-	void HandleRequest(TCPSocket* sock, char* buffer,CHttpReply& reply);
-	void InitReply(CHttpReply& reply);
+	// Session endpoints
+	static void ApiLogin(const httplib::Request& req, httplib::Response& res);
+	static void ApiLogout(const httplib::Request& req, httplib::Response& res);
+	static void ApiSessionCheck(const httplib::Request& req, httplib::Response& res);
 
-	bool SendEIBCommand(const CString& addr, unsigned char *apci, unsigned char apci_len, CString& err);
-	bool GetByteArrayFromHexString(const CString& str, unsigned char *val, unsigned char &val_len);
+	// Data endpoints
+	static void ApiGetGlobalHistory(const httplib::Request& req, httplib::Response& res);
+	static void ApiGetAddressHistory(const httplib::Request& req, httplib::Response& res);
+	static void ApiSendEibCommand(const httplib::Request& req, httplib::Response& res);
+	static void ApiScheduleCommand(const httplib::Request& req, httplib::Response& res);
 
-	void HandleFavoritsIconRequest(CHttpReply& reply);
-	void HandleImageRequest(const CString& file_name, CHttpReply& reply);
-	void FillRawFile(const CString& file_name, CDataBuffer& buf, int& total_size);
+	// Admin endpoints
+	static void ApiGetUsers(const httplib::Request& req, httplib::Response& res);
+	static void ApiSetUsers(const httplib::Request& req, httplib::Response& res);
+	static void ApiGetInterface(const httplib::Request& req, httplib::Response& res);
+	static void ApiInterfaceStart(const httplib::Request& req, httplib::Response& res);
+	static void ApiInterfaceStop(const httplib::Request& req, httplib::Response& res);
+	static void ApiGetBusMonAddresses(const httplib::Request& req, httplib::Response& res);
+	static void ApiBusMonSendCmd(const httplib::Request& req, httplib::Response& res);
 
-	// --- API & Static File Serving ---
-	bool HandleApiRequest(CHttpRequest& request, CHttpReply& reply);
-	bool HandleStaticFile(const CString& path, CHttpReply& reply);
-	void SetJsonResponse(CHttpReply& reply, const CString& json, HTTP_STATUS_CODE status = STATUS_OK);
-	void SetJsonError(CHttpReply& reply, const CString& message, HTTP_STATUS_CODE status = STATUS_INTERNAL_ERROR);
+	// Helpers
+	static bool Authenticate(const httplib::Request& req, CUser& user);
+	static CString GetSessionCookie(const httplib::Request& req);
+	static CString GenerateSessionId();
+	static CString GetJsonField(const CString& json, const CString& field);
 
-	// API: Session management
-	void ApiLogin(CHttpRequest& request, CHttpReply& reply);
-	void ApiLogout(CHttpRequest& request, CHttpReply& reply);
-	void ApiSessionCheck(CHttpRequest& request, CHttpReply& reply);
-	bool ApiAuthenticate(CHttpRequest& request, CUser& user);
+	static void SetJsonResponse(httplib::Response& res, const CString& json, int status = 200);
+	static void SetJsonError(httplib::Response& res, const CString& message, int status = 500);
 
-	// API: Admin endpoints (direct access to conf classes)
-	void ApiGetUsers(CHttpReply& reply);
-	void ApiSetUsers(CHttpRequest& request, CHttpReply& reply);
-	void ApiGetInterface(CHttpReply& reply);
-	void ApiInterfaceStart(CHttpReply& reply);
-	void ApiInterfaceStop(CHttpReply& reply);
-	void ApiGetBusMonAddresses(CHttpReply& reply);
-	void ApiBusMonSendCmd(CHttpRequest& request, CHttpReply& reply);
-
-	// API: Data endpoints (direct StatsDB access)
-	void ApiGetGlobalHistory(CHttpReply& reply);
-	void ApiGetFunctionHistory(const CString& address, CHttpReply& reply);
-	void ApiSendEibCommand(CHttpRequest& request, CHttpReply& reply);
-	void ApiScheduleCommand(CHttpRequest& request, CHttpReply& reply);
-
-	// Session helpers
-	CString GenerateSessionId();
-	CString GetSessionCookie(CHttpRequest& request);
-
-	// MIME type helper
-	CString GetMimeType(const CString& file_path);
-
-	// Extract JSON field from body
-	CString GetJsonField(const CString& json, const CString& field);
+	// Existing business logic helpers
+	static bool SendEIBCommand(const CString& addr, unsigned char* apci,
+							   unsigned char apci_len, CString& err);
+	static bool GetByteArrayFromHexString(const CString& str, unsigned char* val,
+										  unsigned char& val_len);
+	static unsigned char HexToChar(const CString& hexNumber);
+	static int GetDigitValue(char digit);
+	static CString GetMimeType(const CString& file_path);
 
 	friend class WebHandlerUtilTest;
 
-private:
-	queue<TCPSocket*> _job_queue;
-	bool _stop;
-
-	unsigned char HexToChar(const CString& hexNumber);
-	int	GetDigitValue (char digit);
-
-	// Web sessions (cookie-based auth for SPA)
-	static map<CString, WebSession> _sessions;
-	static JTCMutex _session_mutex;
+	static std::map<CString, WebSession> _sessions;
+	static std::mutex _session_mutex;
 };
 
 #endif

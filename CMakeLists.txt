@@ -36,9 +36,14 @@ endif()
 # pthreads — works on Linux, macOS, and cross-compile
 find_package(Threads REQUIRED)
 
-# GTest via FetchContent — downloaded and built automatically
+# OpenSSL — required for EIBServer HTTPS (cpp-httplib TLS)
+find_package(OpenSSL REQUIRED)
+
+# External dependencies via FetchContent
+include(FetchContent)
+
+# GTest — downloaded and built automatically
 if(BUILD_TESTS)
-    include(FetchContent)
     FetchContent_Declare(
         googletest
         GIT_REPOSITORY https://github.com/google/googletest.git
@@ -50,6 +55,14 @@ if(BUILD_TESTS)
     enable_testing()
     include(GoogleTest)
 endif()
+
+# cpp-httplib — header-only HTTP/HTTPS library
+FetchContent_Declare(
+    httplib
+    GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
+    GIT_TAG        v0.18.7
+)
+FetchContent_MakeAvailable(httplib)
 
 # Libraries (order matters — dependencies first)
 add_subdirectory(jtc)

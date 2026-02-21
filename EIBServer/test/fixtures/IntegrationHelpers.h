@@ -1,8 +1,5 @@
 // IntegrationHelpers.h -- Global test environment and HTTP test client
 // for EIBServer integration tests.
-//
-// Includes EIBServer.h (server macros) and EmulatorWrapper.h (no macros).
-// Safe to include in any integration test .cpp file.
 
 #ifndef INTEGRATION_HELPERS_H
 #define INTEGRATION_HELPERS_H
@@ -11,10 +8,10 @@
 #include <thread>
 #include <chrono>
 #include <cstring>
+#include <httplib.h>
 
 #include "EIBServer.h"
 #include "EmulatorWrapper.h"
-#include "Socket.h"
 #include "CString.h"
 
 namespace IntegrationTest {
@@ -55,7 +52,7 @@ public:
         // 6. Start server threads
         CEIBServer::GetInstance().Start();
 
-        // 7. Wait until the web server is actually accepting connections
+        // 7. Wait until the HTTPS server is actually accepting connections
         WaitForWebServer(CEIBServer::GetInstance().GetConfig().GetWEBServerPort());
     }
 
@@ -67,11 +64,14 @@ private:
     void WaitForWebServer(int port, int max_attempts = 50) {
         for (int i = 0; i < max_attempts; ++i) {
             try {
-                TCPSocket probe("127.0.0.1", (unsigned short)port);
-                return; // connected -- server is ready
+                httplib::SSLClient probe("127.0.0.1", port);
+                probe.enable_server_certificate_verification(false);
+                probe.set_connection_timeout(0, 500000); // 500ms
+                auto result = probe.Get("/api/session");
+                if (result) return; // connected -- server is ready
             } catch (...) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
         FAIL() << "Web server did not start on port " << port;
     }
@@ -97,30 +97,34 @@ public:
 // from multiple TUs).  Registration happens once in IntegrationMain.cpp.
 
 // ---------------------------------------------------------------------------
-// HttpTestClient -- sends raw HTTP requests to the server's web port.
+// HttpTestClient -- sends HTTPS requests to the server's web port.
 // ---------------------------------------------------------------------------
 struct HttpResponse {
     int status_code;
     CString body;
-    CString set_cookie;   // raw Set-Cookie value, if present
+    CString set_cookie;    // raw Set-Cookie value, if present
+    CString content_type;  // Content-Type header value
 };
 
 class HttpTestClient {
 public:
     explicit HttpTestClient(int port = 18080, const CString& host = "127.0.0.1")
-        : _port(port), _host(host) {}
+        : _cli(host.GetBuffer(), port)
+    {
+        _cli.enable_server_certificate_verification(false);
+        _cli.set_connection_timeout(5, 0); // 5 seconds
+        _cli.set_read_timeout(5, 0);
+    }
 
     // GET request, optionally with session cookie
     HttpResponse Get(const CString& uri, const CString& session_id = "") {
-        CString req("GET ");
-        req += uri;
-        req += " HTTP/1.0\r\n";
-        req += CString("Host: ") + _host + "\r\n";
+        httplib::Headers headers;
         if (session_id.GetLength() > 0) {
-            req += CString("Cookie: WEBSESSIONID=") + session_id + "\r\n";
+            headers.emplace("Cookie",
+                std::string("WEBSESSIONID=") + session_id.GetBuffer());
         }
-        req += "\r\n";
-        return SendRequest(req);
+        auto result = _cli.Get(uri.GetBuffer(), headers);
+        return ToResponse(result);
     }
 
     // POST request with JSON body, optionally with session cookie
@@ -139,18 +143,15 @@ public:
     HttpResponse PostWithContentType(const CString& uri, const CString& body,
                                      const CString& content_type,
                                      const CString& session_id = "") {
-        CString req("POST ");
-        req += uri;
-        req += " HTTP/1.0\r\n";
-        req += CString("Host: ") + _host + "\r\n";
-        req += CString("Content-Type: ") + content_type + "\r\n";
-        req += CString("Content-Length: ") + CString(body.GetLength()) + "\r\n";
+        httplib::Headers headers;
         if (session_id.GetLength() > 0) {
-            req += CString("Cookie: WEBSESSIONID=") + session_id + "\r\n";
+            headers.emplace("Cookie",
+                std::string("WEBSESSIONID=") + session_id.GetBuffer());
         }
-        req += "\r\n";
-        req += body;
-        return SendRequest(req);
+        auto result = _cli.Post(uri.GetBuffer(), headers,
+            std::string(body.GetBuffer(), body.GetLength()),
+            content_type.GetBuffer());
+        return ToResponse(result);
     }
 
     // Login helper -- returns session ID on success, empty string on failure
@@ -166,63 +167,36 @@ public:
     }
 
 private:
-    int _port;
-    CString _host;
+    httplib::SSLClient _cli;
 
-    HttpResponse SendRequest(const CString& raw_request) {
+    HttpResponse ToResponse(const httplib::Result& result) {
         HttpResponse resp;
         resp.status_code = 0;
 
-        try {
-            TCPSocket sock(_host, (unsigned short)_port);
-            sock.Send(raw_request.GetBuffer(), raw_request.GetLength());
-
-            // Read full response
-            char buf[8192];
-            CString full_response;
-            int n;
-            while ((n = sock.Recv(buf, sizeof(buf) - 1, 3000)) > 0) {
-                buf[n] = '\0';
-                full_response += CString(buf, n);
-            }
-
-            // Parse status line
-            size_t sp1 = full_response.Find(" ");
-            if (sp1 != string::npos) {
-                size_t sp2 = full_response.Find(" ", sp1 + 1);
-                if (sp2 != string::npos && sp2 > sp1) {
-                    CString code_str = full_response.SubString(sp1 + 1, sp2 - sp1 - 1);
-                    resp.status_code = code_str.ToInt();
-                }
-            }
-
-            // Extract Set-Cookie header
-            size_t cookie_pos = full_response.Find("Set-Cookie:");
-            if (cookie_pos != string::npos) {
-                size_t val_start = cookie_pos + 11;
-                // skip whitespace
-                while (val_start < (size_t)full_response.GetLength() && full_response[val_start] == ' ')
-                    val_start++;
-                size_t val_end = full_response.Find("\r\n", val_start);
-                if (val_end == string::npos) val_end = full_response.GetLength();
-                resp.set_cookie = full_response.SubString(val_start, val_end - val_start);
-            }
-
-            // Extract body (after \r\n\r\n)
-            size_t body_start = full_response.Find("\r\n\r\n");
-            if (body_start != string::npos) {
-                body_start += 4;
-                resp.body = full_response.SubString(body_start, full_response.GetLength() - body_start);
-            }
-        } catch (SocketException& e) {
+        if (!result) {
             resp.status_code = -1;
-            resp.body = e.what();
+            resp.body = "Connection failed";
+            return resp;
         }
+
+        resp.status_code = result->status;
+        resp.body = CString(result->body.c_str(), (int)result->body.length());
+
+        // Extract Set-Cookie header
+        if (result->has_header("Set-Cookie")) {
+            resp.set_cookie = CString(result->get_header_value("Set-Cookie").c_str());
+        }
+
+        // Extract Content-Type header
+        if (result->has_header("Content-Type")) {
+            resp.content_type = CString(result->get_header_value("Content-Type").c_str());
+        }
+
         return resp;
     }
 
     CString ExtractSessionId(const CString& set_cookie) {
-        // Format: WEBSESSIONID=<hex>;Path=/
+        // Format: WEBSESSIONID=<hex>; Path=/
         size_t eq = set_cookie.Find("WEBSESSIONID=");
         if (eq == string::npos) return "";
         size_t start = eq + 13; // length of "WEBSESSIONID="

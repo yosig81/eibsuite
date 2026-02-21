@@ -17,11 +17,13 @@ _interface(NULL)
 	_scheduler = new CCommandScheduler();
 }
 
+// Note: _dispatcher is now a raw pointer (not JTC handle) since
+// CDispatcher no longer inherits from JTCThread.
+
 CEIBServer::~CEIBServer()
 {
-	if (_interface != NULL){
-		delete _interface;
-	}
+	delete _dispatcher;
+	delete _interface;
 }
 
 void CEIBServer::Close()
@@ -37,7 +39,6 @@ void CEIBServer::Close()
 	//close web interface
 	LOG_INFO("Closing WEB Interface...");
 	_dispatcher->Close();
-	_dispatcher->join();
 
 	//close command scheduler
 	LOG_INFO("Closing Command Scheduler...");
@@ -78,7 +79,7 @@ void CEIBServer::Start()
 	//start the clients manager
 	_clients_mgr->start();
 	//start web dispatcher
-	_dispatcher->start();
+	_dispatcher->Start();
 	//start command scheduler
 	_scheduler->start();
 
@@ -160,7 +161,7 @@ bool CEIBServer::Init()
 	START_TRY
 		_dispatcher->Init();
 		LOG_INFO("Initializing WEB Interface...Successful.");
-		LOG_INFO("WEB Server listening on port [%d]", _conf.GetWEBServerPort());
+		LOG_INFO("WEB Server: https://localhost:%d", _conf.GetWEBServerPort());
 	END_TRY_START_CATCH(e)
 		LOG_ERROR("Initializing WEB Interface...Failed: %s", e.what());
 		// Non-fatal: EIBServer can run without web UI
@@ -288,6 +289,43 @@ void CEIBServer::InteractiveConf()
 	}
 	if(ConsoleCLI::GetCString("Images folder?",sval, _conf.GetImagesFolder())){
 		_conf.SetImagesFolder(sval);
+	}
+	// TLS certificate setup
+	{
+		map<CString,CString> tls_opts;
+		tls_opts.insert(tls_opts.end(), pair<CString,CString>("auto","Auto-generate self-signed certificate"));
+		tls_opts.insert(tls_opts.end(), pair<CString,CString>("manual","Provide certificate and key file paths"));
+		CString tls_choice;
+		// Default to "auto" unless the user has set custom (non-default) paths
+		CString tls_def = (_conf.GetTLSCertFile() == "./conf/server.crt") ? "auto" : "manual";
+		if(ConsoleCLI::GetStrOption("TLS certificate setup?", tls_opts, tls_choice, tls_def)){
+			if(tls_choice == "auto"){
+				CString cert_path = CURRENT_CONF_FOLDER + "server.crt";
+				CString key_path  = CURRENT_CONF_FOLDER + "server.key";
+				CString cmd = "openssl req -x509 -newkey rsa:2048 -keyout ";
+				cmd += key_path;
+				cmd += " -out ";
+				cmd += cert_path;
+				cmd += " -days 3650 -nodes -subj \"/CN=EIBServer\" 2>&1";
+				LOG_SCREEN("Generating self-signed certificate...\n");
+				int ret = system(cmd.GetBuffer());
+				if(ret != 0){
+					LOG_SCREEN("ERROR: openssl command failed (is openssl installed?)\n");
+				}else{
+					_conf.SetTLSCertFile(cert_path);
+					_conf.SetTLSKeyFile(key_path);
+					LOG_SCREEN("Certificate: %s\n", cert_path.GetBuffer());
+					LOG_SCREEN("Private key: %s\n", key_path.GetBuffer());
+				}
+			}else{
+				if(ConsoleCLI::GetCString("TLS certificate file (PEM)?",sval, _conf.GetTLSCertFile())){
+					_conf.SetTLSCertFile(sval);
+				}
+				if(ConsoleCLI::GetCString("TLS private key file (PEM)?",sval, _conf.GetTLSKeyFile())){
+					_conf.SetTLSKeyFile(sval);
+				}
+			}
+		}
 	}
 
 	_conf.SetLoadOK(true);

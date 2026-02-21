@@ -4,7 +4,6 @@
 #include "IConfBase.h"
 #include "CTime.h"
 #include "StatsDB.h"
-#include "HttpRequest.h"
 #include "JTC.h"
 
 #define EIB_BUS_MON_ADDRESSES_LIST_XML "EIB_BUS_MON_ADDRESSES_LIST"
@@ -30,7 +29,7 @@ public:
 	virtual void ToXml(CDataBuffer& xml_str);
 	virtual void FromXml(const CDataBuffer& xml_str);
 
-	bool SendCmdToAddr(const CHttpRequest& request);
+	bool SendCmdToAddr(const CString& dest_addr, const CString& value, const CString& mode);
 private:
 	JTCMonitor _mon;
 };

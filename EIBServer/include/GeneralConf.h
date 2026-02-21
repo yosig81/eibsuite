@@ -22,3 +22,5 @@ CONF_ENTRY(int,WEBListenInterface,"WEB_LISTEN_INTERFACE",1)
 #else
 CONF_ENTRY(CString,WEBListenInterface,"WEB_LISTEN_INTERFACE","eth0")
 #endif
+CONF_ENTRY(CString,TLSCertFile,"TLS_CERT_FILE","./conf/server.crt")
+CONF_ENTRY(CString,TLSKeyFile,"TLS_KEY_FILE","./conf/server.key")

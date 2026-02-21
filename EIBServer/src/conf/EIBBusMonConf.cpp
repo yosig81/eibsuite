@@ -52,24 +52,15 @@ void CEIBBusMonAddrListConf::FromXml(const CDataBuffer &xml_str)
 {
 }
 
-bool CEIBBusMonAddrListConf::SendCmdToAddr(const CHttpRequest& request)
+bool CEIBBusMonAddrListConf::SendCmdToAddr(const CString& dest_addr, const CString& value, const CString& mode_str)
 {
-	CHttpParameter dst_addr;
-	if(!request.GetParameter(EIB_BUS_MON_SEND_CMD_ADDR_PARAM,dst_addr)){
-		return false;
-	}
-	CHttpParameter send_mode;
-	if(!request.GetParameter(EIB_BUS_MON_SEND_MODE_CMD_PARAM,send_mode)){
-		return false;
-	}
-	CHttpParameter cmd_val;
-	if(!request.GetParameter(EIB_BUS_MON_SEND_CMD_VAL_PARAM,cmd_val)){
+	if (dest_addr.GetLength() == 0 || mode_str.GetLength() == 0 || value.GetLength() == 0) {
 		return false;
 	}
 
-	BlockingMode mode = (BlockingMode)send_mode.GetValue().ToInt();
+	BlockingMode mode = (BlockingMode)mode_str.ToInt();
 
-	CEibAddress addr(dst_addr.GetValue());
+	CEibAddress addr(dest_addr);
 	//CEIBServer::GetInstance().G
 
 	//build the packet
