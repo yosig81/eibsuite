@@ -242,6 +242,10 @@ int Socket::GetLocalPort()  {
 }
 
 void Socket::SetLocalPort(int localPort)  {
+  // Allow rapid rebind after the previous process exits
+  int optval = 1;
+  setsockopt(sockDesc, SOL_SOCKET, SO_REUSEADDR, (raw_type *)&optval, sizeof(optval));
+
   // Bind the socket to its port
   sockaddr_in localAddr;
   memset(&localAddr, 0, sizeof(localAddr));

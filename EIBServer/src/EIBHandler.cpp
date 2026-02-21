@@ -136,6 +136,9 @@ void CEIBHandler::RunEIBWriter()
 void CEIBHandler::Close()
 {
 	_stop = true;
+	// Wake up the reader/writer if suspended on _wait_mon.wait()
+	JTCSynchronized sync(_wait_mon);
+	_wait_mon.notify();
 }
 
 void CEIBHandler::Suspend()

@@ -157,8 +157,13 @@ void CTunnelingConnection::DisConnect()
 	_connection_status = WAITING_DISCONNECT_RESPONSE;
 
 	_heartbeat->Close();
-	while(_connection_status != DISCONNECTED){
+	// Wait for disconnect response, but give up after 2 seconds
+	// to avoid blocking forever if the remote side is already gone.
+	for (int i = 0; i < 20 && _connection_status != DISCONNECTED; ++i){
 		JTCThread::sleep(100);
+	}
+	if (_connection_status != DISCONNECTED){
+		_connection_status = DISCONNECTED;
 	}
 	_heartbeat = NULL;
 }

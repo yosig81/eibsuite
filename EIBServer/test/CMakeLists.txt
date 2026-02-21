@@ -183,8 +183,10 @@ VALUE = 0x00
 "<html><body>EIBServer Test</body></html>
 ")
 
-    gtest_discover_tests(eibserver_integration_tests
+    # Run all integration tests in a single process so the emulator +
+    # server start up once instead of once per test case (~23s -> ~1s).
+    add_test(NAME eibserver_integration_tests
+        COMMAND eibserver_integration_tests
         WORKING_DIRECTORY ${INTEG_WORKDIR}
-        PROPERTIES RESOURCE_LOCK eibserver_integ
     )
 endif()

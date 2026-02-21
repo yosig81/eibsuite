@@ -28,12 +28,10 @@ void CEIBServer::Close()
 {
 	if(_conf.GetLoadOK()) {
 		LOG_INFO("Saving Configuration file...");
-		//save configuration to file
 		_conf.Save(DEFAULT_CONF_FILE_NAME);
 	}
 
 	LOG_INFO("Saving Users database...");
-	//save users database
 	_users_db.Save();
 
 	//close web interface

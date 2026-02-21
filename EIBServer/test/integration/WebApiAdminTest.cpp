@@ -10,10 +10,30 @@ class WebApiAdminTest : public ::testing::Test {
 protected:
     HttpTestClient http;
     CString admin_sid;
+    std::string _saved_users_db;
 
     void SetUp() override {
+        // Back up Users.db so mutating tests can restore it
+        std::ifstream in("conf/Users.db");
+        if (in.is_open()) {
+            _saved_users_db.assign(
+                (std::istreambuf_iterator<char>(in)),
+                 std::istreambuf_iterator<char>());
+        }
+
         admin_sid = http.Login("admin", "admin123");
         ASSERT_GT(admin_sid.GetLength(), 0) << "Admin login failed";
+    }
+
+    void TearDown() override {
+        // Restore Users.db and reload the server so later tests see
+        // the original user set (all tests share one server process).
+        if (!_saved_users_db.empty()) {
+            std::ofstream out("conf/Users.db", std::ios::trunc);
+            out << _saved_users_db;
+            out.close();
+            CEIBServer::GetInstance().ReloadConfiguration();
+        }
     }
 };
 

@@ -74,13 +74,16 @@ void CEmulatorHandler::Init(CEmulatorConfig* server_conf, CLogFile* log_file)
 
 void CEmulatorHandler::Close()
 {
-	DisconnectClients();
+	// Stop the output handler first — it calls Broadcast() which holds
+	// the emulator lock and waits for ACKs that may never come after
+	// the server disconnects.
+	_data_output_handler->Close();
+	_data_output_handler->join();
 
 	_input_handler->Close();
 	_input_handler->join();
 
-	_data_output_handler->Close();
-	_data_output_handler->join();
+	DisconnectClients();
 
 	// Release thread handles now so they are not destroyed
 	// during static destruction when JTC may no longer be valid.
@@ -347,6 +350,15 @@ void CEmulatorHandler::CEmulatorInputHandler::HandleTunnelRequest(unsigned char*
 			return;
 		}
 
+		// Prepare data to broadcast outside the state_monitor lock
+		// to avoid deadlock with the output handler's Broadcast().
+		CCemi_L_Data_Frame con_frame;
+		CCemi_L_Data_Frame ind_frame;
+		bool send_con = false;
+		bool send_ind = false;
+		bool is_read_req = false;
+
+		{
 		JTCSynchronized sync(s->state_monitor);
 		if(req.GetChannelId() != s->channelid){
 			//wrong channel -> send error ack
@@ -364,7 +376,7 @@ void CEmulatorHandler::CEmulatorInputHandler::HandleTunnelRequest(unsigned char*
 			LOG_ERROR("[Received] [Tunnel Request] Error: Wrong sequence id (sending error ack)");
 			return;
 		}
-		
+
 		switch(req.GetcEMI().GetMessageCode())
 		{
 		case L_DATA_REQ:
@@ -398,14 +410,12 @@ void CEmulatorHandler::CEmulatorInputHandler::HandleTunnelRequest(unsigned char*
 		CEibAddress dst = cemi.GetDestAddress();
 		const CEibAddress& src = CEIBEmulator::GetInstance().GetDB().GetPhyForGroup(dst);
 
-		CCemi_L_Data_Frame con(cemi);
-		con.SetMessageControl(L_DATA_CON);
-		con.SetDestAddress(dst);
-		con.SetSrcAddress(src);
-		LOG_DEBUG("[Send] [Frame Confirmation]");
-		_emulator->Broadcast(con);
+		con_frame = CCemi_L_Data_Frame(cemi);
+		con_frame.SetMessageControl(L_DATA_CON);
+		con_frame.SetDestAddress(dst);
+		con_frame.SetSrcAddress(src);
+		send_con = true;
 
-		bool is_read_req = false;
 		if(cemi.GetValueLength() == 1 && cemi.GetAPCI() == 0 && cemi.GetTPCI() == 0){
 			//this is group read request. we now look in the db
 			is_read_req = true;
@@ -413,16 +423,13 @@ void CEmulatorHandler::CEmulatorInputHandler::HandleTunnelRequest(unsigned char*
 			int len;
 			unsigned char* result = CEIBEmulator::GetInstance().GetDB().GetValueForGroup(dst, len);
 			if(len > 0 && result != NULL){
-
-				CCemi_L_Data_Frame ind(L_DATA_IND,
+				ind_frame = CCemi_L_Data_Frame(L_DATA_IND,
 						src,
 						dst,
 						result,
 						len);
-				ind.SetAPCI(GROUP_RESPONSE | ind.GetAPCI());
-				LOG_DEBUG("[Send] [GROUP_RESPONE Indication] Value is: %s",CString::ToHexFormat((char*)result, len, true).GetBuffer());
-				_emulator->Broadcast(ind);
-
+				ind_frame.SetAPCI(GROUP_RESPONSE | ind_frame.GetAPCI());
+				send_ind = true;
 			}
 		}
 
@@ -437,6 +444,18 @@ void CEmulatorHandler::CEmulatorInputHandler::HandleTunnelRequest(unsigned char*
 				CString::ToHexFormat((char*)data,cemi.GetValueLength(),true).GetBuffer());
 			
 			CEIBEmulator::GetInstance().GetDB().SetValueForGroup(dst, cemi);
+		}
+
+		} // release state_monitor before Broadcast to avoid deadlock
+
+		// Broadcast outside state_monitor lock
+		if(send_con){
+			LOG_DEBUG("[Send] [Frame Confirmation]");
+			_emulator->Broadcast(con_frame);
+		}
+		if(send_ind){
+			LOG_DEBUG("[Send] [GROUP_RESPONE Indication] Value");
+			_emulator->Broadcast(ind_frame);
 		}
 
 	END_TRY_START_CATCH(e)
@@ -740,6 +759,9 @@ void CEmulatorHandler::CEmulatorOutputHandler::Close()
 {
 	JTCSynchronized sync(_mon);
 	_stop = true;
+	// Drain the queue so run() doesn't try to Broadcast stale items
+	// after the server has disconnected.
+	while(!_q.empty()) _q.pop();
 	_mon.notify();
 }
 
@@ -752,21 +774,32 @@ void CEmulatorHandler::CEmulatorOutputHandler::EnqueueFrame(const CGroupEntry& g
 
 void CEmulatorHandler::CEmulatorOutputHandler::run()
 {
-	CCemi_L_Data_Frame frame;
-	JTCSynchronized sync(_mon);
 	while(!_stop)
 	{
-		_mon.wait();
-		while(_q.size() > 0){
-			const CGroupEntry& ge = _q.front();
+		CGroupEntry ge;
+		bool have_item = false;
 
+		// Hold _mon only long enough to wait and dequeue one item.
+		{
+			JTCSynchronized sync(_mon);
+			if(_q.empty()){
+				_mon.wait(200);
+			}
+			if(!_q.empty()){
+				ge = _q.front();
+				_q.pop();
+				have_item = true;
+			}
+		}
+
+		// Broadcast without holding _mon so Close() can set _stop.
+		if(have_item){
 			CCemi_L_Data_Frame ind(L_DATA_IND,
 									ge.GetPhyAddress(),
 									ge.GetAddress(),
 									(const unsigned char*)ge.GetValue(),
 									ge.GetValueLen());
 			_emulator->Broadcast(ind);
-			_q.pop();
 		}
 	}
 }

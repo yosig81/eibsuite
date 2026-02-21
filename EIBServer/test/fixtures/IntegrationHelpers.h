@@ -35,8 +35,8 @@ public:
         }
 
         // 1. Init emulator (loads conf/Emulator.conf, conf/Emulator.db, binds UDP :3671)
-        bool emu_ok = InitEmulator();
-        ASSERT_TRUE(emu_ok) << "Emulator Init() failed";
+        _emu_ok = InitEmulator();
+        ASSERT_TRUE(_emu_ok) << "Emulator Init() failed";
 
         // 2. Suppress emulator console output -- keep logs in file only
         SuppressEmulatorScreen();
@@ -46,8 +46,8 @@ public:
 
         // 4. Create and init the server singleton
         CEIBServer::Create();
-        bool srv_ok = CEIBServer::GetInstance().Init();
-        ASSERT_TRUE(srv_ok) << "CEIBServer::Init() failed";
+        _srv_ok = CEIBServer::GetInstance().Init();
+        ASSERT_TRUE(_srv_ok) << "CEIBServer::Init() failed";
 
         // 5. Suppress server console output -- keep logs in file only
         CEIBServer::GetInstance().GetLog().SetPrompt(false);
@@ -61,6 +61,8 @@ public:
 
 private:
     std::string _original_users_db;
+    bool _emu_ok = false;
+    bool _srv_ok = false;
 
     void WaitForWebServer(int port, int max_attempts = 50) {
         for (int i = 0; i < max_attempts; ++i) {
@@ -77,11 +79,13 @@ private:
 public:
 
     void TearDown() override {
-        CEIBServer::GetInstance().Close();
-        StopEmulator();
-        // Intentionally skip delete/Destroy to avoid JTC static destruction crashes
-
-        // Restore original Users.db (server Close() may have overwritten it)
+        if (_srv_ok) {
+            CEIBServer::GetInstance().Close();
+        }
+        if (_emu_ok) {
+            StopEmulator();
+        }
+        // Restore original Users.db after server Close() has saved its state.
         if (!_original_users_db.empty()) {
             std::ofstream db_out("conf/Users.db", std::ios::trunc);
             db_out << _original_users_db;

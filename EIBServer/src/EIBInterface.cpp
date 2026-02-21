@@ -53,7 +53,7 @@ void CEIBInterface::Close()
 
 	LOG_INFO("Closing EIB Output Handler...");
 	//close EIB handlers
-	_output_handler->Close();	
+	_output_handler->Close();
 	_output_handler->join();
 }
 
