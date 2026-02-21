@@ -3,6 +3,20 @@
 # CMake build output
 build/
 
+# Legacy Makefile build artifacts
+*/linux/
+EIBStdLib/linux/
+
+# Stray shared libs copied outside build/
+Emulator-ng/libEIBStdLib.so
+Emulator-ng/libjtc.so
+
+# Test runner scripts (generated)
+*/test/run_tests
+*/tests/run_tests
+*/test/run_integration_tests
+EIBServer/test/build_integ/
+
 # Runtime files
 conf/
 logs/
