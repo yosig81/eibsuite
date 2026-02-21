@@ -37,7 +37,7 @@ App.registerPage('users', {
                             '<label><input type="checkbox" id="user-write"> Write Access</label>' +
                         '</div>' +
                         '<div class="form-group">' +
-                            '<label><input type="checkbox" id="user-console"> Console Access</label>' +
+                            '<label><input type="checkbox" id="user-web"> Web Access</label>' +
                         '</div>' +
                         '<div class="form-group">' +
                             '<label>Source Mask (hex)</label>' +
@@ -135,7 +135,7 @@ App.registerPage('users', {
             var privStr = [];
             if (privs & 1) privStr.push('Read');
             if (privs & 2) privStr.push('Write');
-            if (privs & 4) privStr.push('Console');
+            if (privs & 4) privStr.push('Web');
 
             var isConnected = connected === 'true' || connected === 'True';
             html += '<tr>' +
@@ -161,7 +161,7 @@ App.registerPage('users', {
         document.getElementById('user-pass').value = '';
         document.getElementById('user-read').checked = true;
         document.getElementById('user-write').checked = false;
-        document.getElementById('user-console').checked = false;
+        document.getElementById('user-web').checked = false;
         document.getElementById('user-srcmask').value = '0xFFFF';
         document.getElementById('user-dstmask').value = '0xFFFF';
         document.getElementById('user-name').disabled = false;
@@ -180,7 +180,7 @@ App.registerPage('users', {
         var privs = parseInt(u.EIB_SERVER_USER_PRIVILIGES || '0');
         document.getElementById('user-read').checked = (privs & 1) !== 0;
         document.getElementById('user-write').checked = (privs & 2) !== 0;
-        document.getElementById('user-console').checked = (privs & 4) !== 0;
+        document.getElementById('user-web').checked = (privs & 4) !== 0;
         document.getElementById('user-srcmask').value = '0x' + (parseInt(u.EIB_SERVER_USER_SOURCE_ADDR_MASK || '65535')).toString(16).toUpperCase();
         document.getElementById('user-dstmask').value = '0x' + (parseInt(u.EIB_SERVER_USER_DST_ADDR_MASK || '65535')).toString(16).toUpperCase();
         document.getElementById('user-dialog').style.display = 'block';
@@ -207,7 +207,7 @@ App.registerPage('users', {
         var privs = 0;
         if (document.getElementById('user-read').checked) privs |= 1;
         if (document.getElementById('user-write').checked) privs |= 2;
-        if (document.getElementById('user-console').checked) privs |= 4;
+        if (document.getElementById('user-web').checked) privs |= 4;
         var srcMask = parseInt(document.getElementById('user-srcmask').value) || 65535;
         var dstMask = parseInt(document.getElementById('user-dstmask').value) || 65535;
 
